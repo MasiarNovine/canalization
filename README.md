@@ -1,3 +1,9 @@
+# Introduction
+
+This R package contains the source code used in the context of the Master's thesis at
+the University of Potsdam. For building the package the template of Dr. Detlef Groth (@mittelmark) 
+is used, for a convenient building process using GitHub actions. 
+
 # Rpkg ![](../../actions/workflows/r.yml/badge.svg)
 
 A generic R package template. 
