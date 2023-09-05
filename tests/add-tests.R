@@ -1,4 +1,4 @@
-library(Rpkg)
+library(canalization)
 
 x = 2 + 2
 
