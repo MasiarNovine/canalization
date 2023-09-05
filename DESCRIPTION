@@ -1,11 +1,11 @@
-Package: Rpkg
+Package: canalization
 Type: Package
-Title: your package title change the name on top
+Title: Bayesian workflow to investigate weight volatility of German children from 2000-2022 based on data from the CrescNet network (Leipzig). 
 Version: 0.0.1
-Date: 2023-02-05
-Author: Max Musterman, University of Mustercity
-Maintainer: Max Musterman <musti@uni-mustercity.de>
-Description: R package for ...
+Date: 2023-09-05
+Author: Masiar Novine, University of Potsdam
+Maintainer: Masiar Novine <masiar.novine@gmail.com>
+Description: R package for documenting the master's thesis at the University of Potsdam.
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 License: MIT + file LICENSE
