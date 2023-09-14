@@ -750,8 +750,6 @@ transform_data <- function(cresc_data, ref_name=c("WHO", "KIGGS")) {
     ref_name <- match.arg(ref_name)    
     # Load reference
     ref <- load_ref(ref_name)
-    # Reset path
-    setwd(current)
     # Transform the values based on the given reference using C++ code
     height_sds <- interpolateToZscoresCpp(
         cresc_data[, height], 
@@ -1201,7 +1199,7 @@ load_data <- function(ob, ctrl) {
 #' \description{Preparing the specific CrescNet data from the years 2000-2022.}
 #' \usage{build_dataset(cresc_data, n_train, center_age, age_as_days, encode_sex, seed)}
 #' \arguments{
-#'   \item{cresc_data}{File path to the CrescNet file containing subjects labeled control.}
+#'   \item{cresc_data}{CrescNet data table.}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
 #'   \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE}
