@@ -1,33 +1,34 @@
 #' \name{z_score}
 #' \alias{z_score}
-#' \title{Transform raw biometrical measurements to z-scores}
-#' \usage{z_score(y, L, M, S)}
+#' \title{z-score transformation}
+#' \usage{z_score(y, l, m, s)}
 #' \description{
-#' Given the LMS parameters and raw measurements for weight, height or BMI, 
-#' the given values are transformed to z-values.
+#' Transform raw biometrical measurements to z-scores
 #' }
 #' \details{
-#' The function is based on the LMS method of Cole (1991), which is commonly applied for growth curve analysis.
+#' Given the LMS parameters and raw measurements for weight, height or BMI, 
+#' the given values are transformed to z-values, based on the 
+#' LMS method of Cole (1991), which is commonly applied for growth curve analysis.
 #' }
 #' \arguments{
 #'   \item{y}{Vector of values.}
-#'   \item{L}{Exponent parameter of the Box-Cox function.}
-#'   \item{M}{The median value.}
-#'   \item{S}{The standard coefficient of variance.}
+#'   \item{l}{Exponent parameter of the Box-Cox function.}
+#'   \item{m}{The median value.}
+#'   \item{s}{The standard coefficient of variance.}
 #' }
 #' \value{`vector` of transformed values.}
 #' \references{
 #' Cole, TJ, "The LMS method for constructing normalized growth standards", European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
 #' }
 
-z_score <- function(y, L, M, S) {
-    return(((y / M)^L - 1) / (L * S))
+z_score <- function(y, l, m, s) {
+    return(((y / m)^l - 1) / (l * s))
 } 
 
-#' \name{get_index}
-#' \alias{get_index}
+#' \name{get_indices}
+#' \alias{get_indices}
 #' \title{Retrieve the pair of indices for linear interpolation.}
-#' \usage{get_index(age, ref, sex)}
+#' \usage{get_indices(age, ref, sex)}
 #' \description{Retrieve the indices for the interpolation of the LMS parameters}
 #' \details{
 #' The references for the raw measurements only are given for discrete months values, such that 
@@ -44,7 +45,7 @@ z_score <- function(y, L, M, S) {
 #'  The relevant indices for interpolation.
 #' }
 
-get_index <- function(age, ref, sex=c('male', 'female')) {
+get_indices <- function(age, ref, sex=c('male', 'female')) {
     sex <- match.arg(sex)
     index <- 1
 
@@ -94,7 +95,7 @@ get_index <- function(age, ref, sex=c('male', 'female')) {
 #'  The proportion of the difference between the lower / upper reference age bound 
 #'  and the difference of the the age of the child to the upper reference age bound.
 #' }
-#' \seealso{See also \code{\link{get_index}}}
+#' \seealso{See also \code{\link{get_indices}}}
 
 get_proportion <- function(age, ref, indices) {
     delta_ref_age <- ref[indices[2], 'age'] - ref[indices[1], 'age']
@@ -117,14 +118,14 @@ get_proportion <- function(age, ref, indices) {
 #' relevant for the respective age of a child.
 #' }
 #' \value{A 'numeric' value, representing the linear interpolation.}
-#' \seealso{See also \code{\link{get_index}}, \code{\link{get_proportion}}, \code{\link{z_score_interpolation}}}
+#' \seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, \code{\link{interpolate_to_z_score}}}
 
 lint <- function(prop, low, up) {
     return(up - (prop * (up - low)))
 }
 
-#' \name{z_score_interpolation}
-#' \alias{z_score_interpolation}
+#' \name{interpolate_to_z_score}
+#' \alias{interpolate_to_z_score}
 #' \title{Linear interpolation of LMS parameters.}
 #' \description{
 #'  Interpolation of raw values of either weight, height or BMI to z-scores.
@@ -142,12 +143,12 @@ lint <- function(prop, low, up) {
 #' \value{
 #' A 'vector' of z-score transforms.
 #' }
-#' \seealso{See also \code{\link{get_index}}, \code{\link{get_proportion}}, \code{\link{lint}}.}
+#' \seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, \code{\link{lint}}.}
 
-z_score_interpolation <- function(value, age, ref, type=c("weight", "height", "bmi")) {
+interpolate_to_z_score <- function(value, age, ref, type=c("weight", "height", "bmi")) {
     type <- match.arg(type)
 
-    indices <- get_index(age, ref)
+    indices <- get_indices(age, ref)
     prop <- get_proportion(age, ref, indices)
 
     interpol_l <- lint(prop, ref[indices[1], paste0(type, '_l')], ref[indices[2], paste0(type, '_l')])
@@ -730,28 +731,45 @@ load_ref <- function(ref_name = c("WHO", "KIGGS")) {
     }
 }
 
-#' \name{transform_data}
-#' \alias{transform_data}
-#' \usage{transform_data(cresc_data, ref_name)}
+#' \name{prep_data}
+#' \alias{prep_data}
+#' \usage{prep_data(obesity_file, control_file, ref_name)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
 #' }
 #' \details{The function transform the raw measurements of the initial CrescNet data table to z-scores based on a given reference.}
 #' \arguments{
-#'  \item{cresc_data}{The CrescNet object.}
-#'  \item{ref_name}{Which reference to use.}
+#'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
+#'   \item{control_file}{CrescNet file path for control labeled subjects.}
+#'   \item{ref_name}{Which reference to use.}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
 
-transform_data <- function(cresc_data, ref_name=c("WHO", "KIGGS")) {
-    ref_name <- match.arg(ref_name)    
+prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KIGGS")) {
+    # Loading CrescNet data
+    obese <- data.table::fread(obesity_file, header=TRUE)[, type := "obese"]
+    control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
+    
+    # Pool data sets
+    cresc_data <- rbind(obese, control)
+    setnames(cresc_data, "gestational_age", "gest_age")
+    
+    # Fix issues with R CMD check by defining each variable used in the data.table locally
+    age <- type <- sex <- age_group <- gestational_age <- NULL 
+    height <- height_l <- height_m <- height_s <- NULL
+    weight <- weight_l <- weight_m <- weight_s <- NULL
+    bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
+
+    ref_name <- match.arg(ref_name)
+
     # Load reference
     ref <- load_ref(ref_name)
+    
     # Transform the values based on the given reference using C++ code
-    height_sds <- interpolateToZscoresCpp(
+    height_sds <- interpolate_to_z_score_vector_cpp(
         cresc_data[, height], 
         cresc_data[, age * 12], 
         ref[, age], 
@@ -759,7 +777,7 @@ transform_data <- function(cresc_data, ref_name=c("WHO", "KIGGS")) {
         ref[, height_m], 
         ref[, height_s]
     )
-    weight_sds <- interpolateToZscoresCpp(
+    weight_sds <- interpolate_to_z_score_vector_cpp(
         cresc_data[, weight],
         cresc_data[, age * 12] , 
         ref[, age], 
@@ -767,7 +785,7 @@ transform_data <- function(cresc_data, ref_name=c("WHO", "KIGGS")) {
         ref[, weight_m], 
         ref[, weight_s] 
     )
-    bmi_sds <- interpolateToZscoresCpp(
+    bmi_sds <- interpolate_to_z_score_vector_cpp(
         cresc_data[, bmi], 
         cresc_data[, age * 12], 
         ref[, age], 
@@ -776,17 +794,17 @@ transform_data <- function(cresc_data, ref_name=c("WHO", "KIGGS")) {
         ref[, bmi_s]
     )
     res <- data.table(
-        sex=cresc_data[, sex], 
-        gestational_age=cresc_data[, gestational_age], 
-        age=cresc_data[, age], 
-        height=cresc_data[, height],
-        weight=cresc_data[, weight],
-        bmi=cresc_data[, bmi],
-        age_group=cresc_data[, age_group],
-        height_sds=height_sds,
-        weight_sds=weight_sds,
-        bmi_sds=bmi_sds,
-        type=cresc_data[, type]
+        sex = cresc_data[, sex], 
+        gestational_age = cresc_data[, gestational_age], 
+        age = cresc_data[, age], 
+        height = cresc_data[, height],
+        weight = cresc_data[, weight],
+        bmi = cresc_data[, bmi],
+        age_group = cresc_data[, age_group],
+        height_sds = height_sds,
+        weight_sds = weight_sds,
+        bmi_sds = bmi_sds,
+        type = cresc_data[, type]
     )
     colnames(res) <- c(
         "sex", "gestational_age", "age", "height", "weight", "bmi", "age_group",
@@ -839,16 +857,23 @@ check_columns <- function(cresc_data) {
 #' }
 
 build_age_cohorts <- function(cresc_data, age_bounds) {
-    age_cohorts <- getAgeCohortsCpp(cresc_data[, age], age_bounds)
+    age <- NULL
+
+    # Assign age ranges to observations
+    age_cohorts <- get_age_cohorts_cpp(cresc_data[, age], age_bounds)
+
     # Create levels
     y <- gl(
         nrow(age_bounds), 1, nrow(age_bounds), 
         labels=paste0(age_bounds[, 1], "-", age_bounds[, 2], " years")
     )
-    # Exclude those subject, which hav not been assigned to a age group
+
+    # Exclude those subject, which have not been assigned to a age group
     idx <- which(age_cohorts$age_lower == 0 & age_cohorts$age_upper == 0)
+    
     # Exclude not assigned subjects
     res <- if (length(idx) != 0) {
+        
         # Create factors for each group but exclude to assigned subjects
         age_bounds <- factor(paste0(age_cohorts$age_lower[-idx], "-", age_cohorts$age_upper[-idx], " years"), levels=levels(y)) 
         cbind(cresc_data[-idx, ], age_bounds=age_bounds)
@@ -857,44 +882,8 @@ build_age_cohorts <- function(cresc_data, age_bounds) {
         age_bounds <- factor(paste0(age_cohorts$age_lower, "-", age_cohorts$age_upper, " years"), levels=levels(y))
         cbind(cresc_data, age_bounds=age_bounds)
     }
+
     return(res)
-}
-
-build_all_age_cohorts <- function(ref="WHO") {
-     # Generate age cohorts for pooled data for boys & girls
-    control <- readRDS(paste0("control", "_", ref))
-    non_obese <- readRDS(paste0("non-obese", "_", ref))
-    obese <- readRDS(paste0("obese", "_", ref))
-
-    # Prepare age cohorts samples
-    control_age_cohort <- rbind(control[[1]], control[[2]], control[[3]], control[[4]])
-    non_obese_age_cohort <- rbind(non_obese[[1]], non_obese[[2]], non_obese[[3]], non_obese[[4]])
-    obese_age_cohort <- rbind(obese[[1]], obese[[2]], obese[[3]], obese[[4]])
-    
-    # Include identifier column
-    control_age_cohort <- cbind(control_age_cohort, type=rep("control", nrow(control_age_cohort)))
-    non_obese_age_cohort <- cbind(non_obese_age_cohort, type=rep("non-obese", nrow(non_obese_age_cohort)))
-    obese_age_cohort <- cbind(obese_age_cohort, type=rep("obese", nrow(obese_age_cohort)))
-
-    # Conflate all measurements into one
-    return(rbind(control_age_cohort, obese_age_cohort, non_obese_age_cohort))
-}
-
-save_age_cohorts <- function(age_bounds, ref="WHO") {
-    control_process <- transform_data(cresc_data=cresc_net_control)
-    obese_process <- transform_data(cresc_data=cresc_net_obesity)
-
-     # Generate age cohorts for pooled data for boys & girls
-    control <- build_age_cohorts(control_process, age_bounds)
-
-    # Split the obese into two groups: those, where the end measurement is equal or above the 97th percentile and those equal or under the 85th percentile
-    obese <- build_age_cohorts(split_risk_groups(obese_process)$obese, age_bounds)
-    non_obese <- build_age_cohorts(split_risk_groups(obese_process)$non_obese, age_bounds)
-
-    # Save the data as RDS objects, to avoid recalculating them over and over
-    saveRDS(control, paste0("control", "_", ref))
-    saveRDS(non_obese, paste0("non-obese", "_", ref))
-    saveRDS(obese, paste0("obese", "_", ref))
 }
 
 #' \name{split_risk_groups}
@@ -1164,42 +1153,14 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
     return(final)
 }
 
-#' \name{load_data}
-#' \alias{load_data}
-#' \title{Loading the CrescNet files.}
-#' \description{Loading the CrescNet data.}
-#' \usage{load_data(ob, ctrl)}
-#' \arguments{
-#'   \item{ob}{File path to the CrescNet file containing subjects labeled obese.}
-#'   \item{ctrl}{File path to the CrescNet file containing subjects labeled control.}
-#' }
-#' \details{
-#' Based on a `data.table` This function expects a certain file structure given by the two CSV files containing the 
-#' subjects labeled 'obese' and 'control', so initial variable names should not be changed. 
-#' Labeling of the subjects is based on whether any measurements has been over the 95th BMI percentile or not 
-#' using the Kromeyer-Hausschild et al. (2015) reference. The two datasets are pooled together and split into 
-#' a training and a test set.
-#' }
-#' \value{A list containing two 'data.table' objects, 'train' and 'test'.}
-#' \examples{
-#' }
-#' \seealso{ See also \code{\link{build_dataset}} }
-load_data <- function(ob, ctrl) {
-    obf <- data.table::fread(ob, header=TRUE)[, type := "obese"]
-    ctf <- data.table::fread(ctrl, header=TRUE)[, type := "control"]
-    # Pool data sets
-    cresc_data <- rbind(obf, ctf)
-    setnames(cresc_data, "gestational_age", "gest_age")
-    return(cresc_data)
-}
-
 #' \name{build_dataset}
 #' \alias{build_dataset}
 #' \title{Preparation of input data.}
 #' \description{Preparing the specific CrescNet data from the years 2000-2022.}
-#' \usage{build_dataset(cresc_data, n_train, center_age, age_as_days, encode_sex, seed)}
+#' \usage{build_dataset(obesity_file, control_file, n_train, center_age, age_as_days, encode_sex, seed)}
 #' \arguments{
-#'   \item{cresc_data}{CrescNet data table.}
+#'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
+#'   \item{control_file}{CrescNet file path for control labeled subjects.}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
 #'   \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE}
@@ -1207,64 +1168,103 @@ load_data <- function(ob, ctrl) {
 #'   \item{seed}{Value of the seed used for random sampling of subjects. Default: 1}
 #' }
 #' \details{
-#' The function expects a `data.table` containing the CrescNet data, with the necessary variable names. 
+#' The function expects file paths to the two CrescNet data, with the necessary variable names. 
 #' Labeling of the subjects is based on whether any measurement has been over the 95th BMI percentile or not 
 #' using the Kromeyer-Hausschild et al. (2015) reference. The data is split into a training and a test set.
 #' }
 #' \value{A list containing two 'data.table' objects, 'train' and 'test'.}
-#' \examples{
-#' }
-#' \seealso{ See also \code{\link{load_data}} }
-build_dataset <- function(cresc_data,
+
+build_dataset <- function(obesity_file,
+                          control_file,
                           n_train = 100,
                           center_age = FALSE, 
                           age_as_days = FALSE, 
                           encode_sex = FALSE, 
                           seed = 1
 ) {
+    # Loading CrescNet data
+    obese <- data.table::fread(obesity_file, header=TRUE)[, type := "obese"]
+    control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
+    
+    # Pool data sets
+    cresc_data <- rbind(obese, control)
+    setnames(cresc_data, "gestational_age", "gest_age")
+    
+    # Introduce variables
+    sex <- type <- age <- mid <- weight <- subject_id <- age_group <- dupl_age <- NULL
+   
+    # Take subset of variables
     #varssub <- c("subject_id", "sex", "gest_age", "age", "height", "weight", "bmi", "height_sds", "bmi_sds", "age_group", "type")
     #cresc_data <- cresc_data[, ..varssub]
+    
     cresc_data[, sex := factor(sex, levels = c("female", "male"))]
     cresc_data[, type := factor(type, levels = c("control", "obese"))]
+    
     # Encode sex as binary factor, 0 == male, 1 == female
     if (encode_sex) {
         cresc_data[, sex := unlist(lapply(sex, function(x) { return(if (x == "male") 0 else 1) }))]
     }
+    
     # Convert age in days
     if (age_as_days) {
         cresc_data <- cresc_data[, age := floor(age * 365.25)]
     }
+    
     # Enumerate measurements with ID
     cresc_data[, mid := seq(1, length(weight), 1), by = subject_id]
+    
     # Center age
     if (center_age) {
         cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
     }
+    
     # Get response at baseline, i.e. first measurement at approx age 0.5 years
-    start <- cresc_data[age_group == "start", .(subject_id, age, weight)]
+    start <- cresc_data[age_group == "start", list(subject_id, age, weight)]
     setnames(start, c("weight", "age"), c("weight0", "age0"))
     after <- cresc_data[age_group != "start", ]
+    
     # Set keys for faster access / merging
     setkey(start, subject_id)
     setkey(after, subject_id, mid)
     cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
+    
     # Find & remove duplicated observations
     # Must copy explicitly because of self reference
     cresc_data_cp <- copy(cresc_data) 
     cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
     cresc_data <- cresc_data[dupl_age == FALSE, ]
+    
     # Random sampling of subjects
     set.seed(seed)
     rndidx <- sample(seq(1, length(cresc_data[, unique(subject_id)]), 1), size = n_train)
     ids <- cresc_data[, unique(subject_id)][rndidx]
+    
     # Split into test and training set for internal validation
     cresc_train <- cresc_data[subject_id %in% ids, ]
     cresc_test <- cresc_data[!(subject_id %in% ids), ]
     return(list(train = cresc_train, test = cresc_test))
 }
 
-# Function to get the important diagnostics plots for the mixed-effects models.
+#' \name{check_mixed_model}
+#' \alias{check_mixed_model}
+#' \title{Checking mixed-effects model}
+#' \description{Model check applying common checks for model assessment.}
+#' \usage{check_mixed_model(model, cresc_data, seed)}
+#' \arguments{
+#'   \item{model}{A `gls` model.}
+#'   \item{cresc_data}{CrescNet data.table}
+#'   \item{seed}{The seed for extracting the 20 randomly drawn subjects. Default: 1}
+#' }
+#' \details{
+#' The usually model checks are applied, i.e. (1) constant variance residuals check, (2) random distributed residuals,
+#' (3) goodness of fit by plotting fitted values against the outcome variable, (4) the variogram for observing the intra-subject correlation
+#' and (5) plotting fitted values against the standardized residuals.
+#' }
+#' \value{Series of `ggplot` plots.}
+
 check_mixed_model <- function(model, cresc_data, seed = 1) {
+    fitted <- resid <- subject_id <- rndidx <- age <- weight <- NULL
+
     # Define plotting settings
     blue <- "#5499C7" 
     t <- theme_bw(base_size = 12, base_family = "Fira Sans") %+replace%
@@ -1309,8 +1309,7 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
     # Variogram for checking the correlations
     p4 <- ggVario(Variogram(model, resType = "n"))
 
-    # DIAGNOSTICS PLOT: NO TREND IN WITHIN-SUBJECT CORRELATIONS
-    # Variogram for checking the correlations
+    # DIAGNOSTICS PLOT: FITTED VS RESIDUALS
     p5 <- ggplot(cresc_data, aes(x = fitted, y = resid)) + 
         geom_point(colour = blue) +
         labs(title = expression(bold("Fitted vs response")), x = "Fitted", y = "Standardized residuals") +
@@ -1325,8 +1324,26 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
     readline(pr); print(p5)
 }
 
-# Predictions based on GLS model using the test set
+#' \name{make_predictions}
+#' \alias{make_predictions}
+#' \title{Generate predictions}
+#' \description{Uses the given GLS model to make predictions for 20 subjects.}
+#' \usage{make_predictions(model, cresc_data, seed, log)}
+#' \arguments{
+#'   \item{model}{A `gls` model.}
+#'   \item{cresc_data}{CrescNet data.table}
+#'   \item{seed}{The seed for extracting the 20 randomly drawn subjects. Default: 1}
+#'   \item{log}{Whether the logarithm for the data should be used. Default: TRUE}
+#' }
+#' \details{
+#' The function can be used to observe, how the model fits body weights of 20 randomely selected subjects of a test set.
+#' Next to a `ggplot` plot with fits for each subject, the estimated weight values are appended to the initilal data.table object.
+#' }
+#' \value{A `ggplot` object and a `data.table` with prediction estimates.}
+
 make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
+    subject_id <- age <- predicted <- weight <- NULL
+
     blue <- "#5499C7"
     set.seed(seed)
 
@@ -1334,7 +1351,7 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
         subject_id %in% sample(cresc_data$test[, unique(subject_id)], size = 20), 
     ]
 
-    cresc_test[, predicted := predict(model_gls, cresc_test)]
+    cresc_test[, predicted := predict(model, cresc_test)]
 
     g <- if (log) {
         ggplot(cresc_test, aes(x = age, log(weight)))
@@ -1354,8 +1371,22 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
     return(cresc_test)
 }
 
-# Function to plot a Variogram based on ggplot2
+#' \name{ggVario}
+#' \alias{ggVario}
+#' \title{Plot a variogram}
+#' \description{Uses ggplot to plot a variogram}
+#' \usage{ggVario(v)}
+#' \arguments{
+#'   \item{v}{A data.frame object with columns `dist` and `variog`.}
+#' }
+#' \details{
+#' The column `dist` contains the distances, while `variog` is the the result of the variogram function.
+#' }
+#' \value{A `ggplot` object.}
+
 ggVario <- function(v) {
+    variog <- type <- NULL
+
     g <- ggplot(v, aes(x = dist, y = variog))
     g <- g + 
         geom_point() + 
@@ -1374,4 +1405,175 @@ ggVario <- function(v) {
     # tcltk::.Tcl(paste("lappend auto_path",file.path(system.file(package="Rpkg"),"pantcl", "lib")))
     # tcltk::.Tcl("package require tclfilters")
     # tools::vignetteEngine("pantcl",package=pkgname,weave=pantcl,tangle=ptangle)
+    # Expose the interpolation module to R
+    Rcpp::loadModule("interpolation_module", TRUE)
+}
+
+# DOCUMENTATION FOR C++ CODE
+#------------------------------------------------------------------------------------
+#' \name{get_indices_cpp}
+#' \alias{get_indices_cpp}
+#' \title{Retrieve the pair of indices for linear interpolation.}
+#' \usage{get_indices_cpp(...)}
+#' \description{Retrieve the indices for the interpolation of the LMS parameters}
+#' \details{
+#' The references for the raw measurements only are given for discrete months values, such that 
+#' for ages in-between, the L, M and S parameters must be interpolated. For simplicity, the 
+#' values are linearly interpolated- For this reason, the indices for the lower and upper bound 
+#' in the proximity of the the values of interest must be found by this function.
+#' }
+#' \arguments{
+#' \item{...}{Arguments.}
+#' }
+#' \value{
+#'  The relevant indices for interpolation.
+#' }
+get_indices_cpp <- function(...) {
+    return(get_indices_cpp(...))
+}
+
+#' \name{get_proportion_cpp}
+#' \alias{get_proportion_cpp}
+#' \title{Calculate the proportion factor for precise interpolation.}
+#' \usage{get_proportion_cpp(...)}
+#' \description{
+#'  Get the relative proportion, which is necessary for interpolation.
+#' }
+#' \details{
+#' The references for the raw measurements only are given for discrete months values, such that 
+#' for ages in-between, the L, M and S parameters must be interpolated. For simplicity, the 
+#' values are linearly interpolated- For this reason, the indices for the lower and upper bound 
+#' in the proximity of the the values of interest must be found by this function.
+#' }
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \value{
+#'  The proportion of the difference between the lower / upper reference age bound 
+#'  and the difference of the the age of the child to the upper reference age bound.
+#' }
+#' \seealso{See also \code{\link{get_indices_cpp}}}
+get_proportion_cpp <- function(...) {
+    return(get_proportion_cpp(...))
+}
+
+#' \name{z_score_cpp}
+#' \alias{z_score_cpp}
+#' \title{z-score transformation}
+#' \usage{z_score_cpp(...)}
+#' \description{Transform raw biometrical measurements to z-scores}
+#' \details{
+#' Given the LMS parameters and raw measurements for weight, height or BMI, 
+#' the given values are transformed to z-values, based on the 
+#' LMS method of Cole (1991), which is commonly applied for growth curve analysis.
+#' }
+#' \arguments{
+#'   \item{...}{Arguments.}
+#' }
+#' \value{`vector` of transformed values.}
+#' \references{Cole, TJ, "The LMS method for constructing normalized growth standards", European journal of clinical nutrition 44, 1 (1990), pp. 45-60.}
+z_score_cpp <- function(...) {
+    return(z_score_cpp(...))
+}
+
+#' \name{lint_cpp}
+#' \alias{lint_cpp}
+#' \title{Linear interpolation between an upper and lower value.}
+#' \usage{lint_cpp(...)}
+#' \description{Perform linear interpolation based on the lower / upper reference age bound.}
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \details{
+#' The basic functionality to perform linear interpolation using the proportion of the upper and lower age bound, 
+#' relevant for the respective age of a child.
+#' }
+#' \value{A 'numeric' value, representing the linear interpolation.}
+#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{interpolate_to_z_score_cpp}}}
+lint_cpp <- function(...) {
+    return(lint_cpp(...))
+}
+
+#' \name{interpolate_to_z_score_cpp}
+#' \alias{interpolate_to_z_score_cpp}
+#' \title{Linear interpolation of LMS parameters.}
+#' \usage{interpolate_to_z_score_cpp(...)}
+#' \description{Interpolation of raw values of either weight, height or BMI to z-scores.}
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \details{
+#' For getting z-scores for values for ages, not covered by references tables, 
+#' linear transformation for ages in close proximity are used.
+#' }
+#' \value{
+#' A 'vector' of z-score transforms.
+#' }
+#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
+interpolate_to_z_score_cpp <- function(...) {
+    return(interpolate_to_z_score_cpp(...))
+}
+
+#' \name{interpolate_to_z_score_vector_cpp}
+#' \alias{interpolate_to_z_score_vector_cpp}
+#' \title{Linear interpolation of LMS parameters.}
+#' \usage{interpolate_to_z_score_vector_cpp(...)}
+#' \description{
+#'  Interpolation of a vector of raw values of either weight, height or BMI to z-scores.
+#' }
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \details{
+#' For getting z-scores for values for ages, not covered by references tables, 
+#' linear transformation for ages in close proximity are used.
+#' }
+#' \value{
+#' A 'vector' of z-score transforms.
+#' }
+#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
+interpolate_to_z_score_vector_cpp <- function(...) {
+    return(interpolate_to_z_score_vector_cpp(...))
+}
+
+#' \name{get_age_cohorts_cpp}
+#' \alias{get_age_cohorts_cpp}
+#' \title{Assign age bounds to observations.}
+#' \usage{get_age_cohorts_cpp(...)}
+#' \description{
+#' Get the age bounds for each observation based on the age of the subject. 
+#' }
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \details{
+#' For each observation the age is compared to the given age bounds, such that the given age range 
+#' is assigned to the respective observation, if the age at the time of measurement lies in the 
+#' given range. Note, that if the age cannot be assigned to any range, the assigned value is zero.
+#' }
+#' \value{
+#' A list of with upper and lower age bounds.
+#' }
+#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
+get_age_cohorts_cpp <- function(...) {
+    return(get_age_cohorts_cpp(...))
+}
+
+#' \name{get_unique_ids_cpp}
+#' \alias{get_unique_ids_cpp}
+#' \title{Retrieve unique IDs.}
+#' \usage{get_unique_ids_cpp(...)}
+#' \description{Return the unique IDs for a all observations.}
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \details{
+#' All unique subject IDs are extracted.
+#' }
+#' \value{
+#' A `vector` of unique subject names.
+#' }
+#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
+get_unique_ids_cpp <- function(...) {
+    return(get_unique_ids_cpp(...))
 }

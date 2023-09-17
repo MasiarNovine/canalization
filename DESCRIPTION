@@ -7,7 +7,8 @@ Author: Masiar Novine, University of Potsdam
 Maintainer: Masiar Novine <masiar.novine@gmail.com>
 Description: R package for documenting the master's thesis at the University of Potsdam.
 Suggests: knitr, rmarkdown
-Depends: R (>= 3.5.0), data.table, Hmisc, ggplot2, Rcpp (>= 0.11.4), xlsx
+Depends: ggplot2, data.table, Hmisc, xlsx, nlme
+Imports: Rcpp (>= 1.0.11), mcgraph
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
 VignetteBuilder: knitr

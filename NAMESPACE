@@ -1,1 +1,7 @@
-exportPattern("^[[:lower:]]+")
+useDynLib(canalization, .registration=TRUE)
+import(data.table, ggplot2, xlsx, Hmisc, nlme, mcgraph)
+importFrom("Rcpp", "evalCpp")
+#importFrom(ggplot2, "ggplot", "geom_point", "geom_line", "geom_boxplot", "coord_flip", "geom_abline", "labs", "facet_wrap", "expand_limits", "geom_smooth", "theme", "theme_bw", "%+replace%")
+#importFrom("data.table", "data.table", "fread", "setnames", ".__T__[<-:base", ":=", "copy", "setkey")
+importFrom("stats", "dist", "fitted", "predict", "resid", "rnorm", "sd")
+exportPattern("^[[:alpha:]]+")
