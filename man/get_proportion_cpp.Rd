@@ -1,7 +1,7 @@
-\name{get_proportion} 
-\alias{get_proportion} 
+\name{get_proportion_cpp} 
+\alias{get_proportion_cpp} 
 \title{Calculate the proportion factor for precise interpolation.} 
-\usage{get_proportion(age, ref, indices)} 
+\usage{get_proportion_cpp(...)} 
 \description{ 
  Get the relative proportion, which is necessary for interpolation. 
 } 
@@ -12,12 +12,10 @@ values are linearly interpolated- For this reason, the indices for the lower and
 in the proximity of the the values of interest must be found by this function. 
 } 
 \arguments{ 
- \item{age}{The age of the child.} 
- \item{ref}{The reference as a data.frame.} 
- \item{indices}{The vector of indices.} 
+ \item{...}{Arguments.} 
 } 
 \value{ 
  The proportion of the difference between the lower / upper reference age bound  
  and the difference of the the age of the child to the upper reference age bound. 
 } 
-\seealso{See also \code{\link{get_indices}}} 
+\seealso{See also \code{\link{get_indices_cpp}}} 

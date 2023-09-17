@@ -1,19 +1,20 @@
 \name{z_score} 
 \alias{z_score} 
-\title{Transform raw biometrical measurements to z-scores} 
-\usage{z_score(y, L, M, S)} 
+\title{z-score transformation} 
+\usage{z_score(y, l, m, s)} 
 \description{ 
-Given the LMS parameters and raw measurements for weight, height or BMI,  
-the given values are transformed to z-values. 
+Transform raw biometrical measurements to z-scores 
 } 
 \details{ 
-The function is based on the LMS method of Cole (1991), which is commonly applied for growth curve analysis. 
+Given the LMS parameters and raw measurements for weight, height or BMI,  
+the given values are transformed to z-values, based on the  
+LMS method of Cole (1991), which is commonly applied for growth curve analysis. 
 } 
 \arguments{ 
   \item{y}{Vector of values.} 
-  \item{L}{Exponent parameter of the Box-Cox function.} 
-  \item{M}{The median value.} 
-  \item{S}{The standard coefficient of variance.} 
+  \item{l}{Exponent parameter of the Box-Cox function.} 
+  \item{m}{The median value.} 
+  \item{s}{The standard coefficient of variance.} 
 } 
 \value{`vector` of transformed values.} 
 \references{ 
