@@ -163,13 +163,13 @@ interpolate_to_z_score <- function(value, age, ref, type=c("weight", "height", "
 #' \title{Load reference tables.}
 #' \description{Using reference tables}
 #' \arguments{
-#'  \item{ref_name}{Either "WHO" or "KIGGS". Default: "WHO".}
+#'  \item{ref_name}{Either "WHO" or "KiGGS". Default: "WHO".}
 #' }
 #' \details{Currently two reference tables are available: 
 #' The World Health Organization (WHO) and the KiGGS based on the study of the Robert-Koch Institute in Germany.}
 #' \value{A reference as a `data.table` object.}
 
-load_ref <- function(ref_name = c("WHO", "KIGGS")) {
+load_ref <- function(ref_name = c("WHO", "KiGGS")) {
     ref <- if (ref_name == "WHO") {
         data.table::fread(
             "age sex weight_l weight_m weight_s height_l height_m height_s bmi_l bmi_m bmi_s
@@ -633,7 +633,7 @@ load_ref <- function(ref_name = c("WHO", "KIGGS")) {
             228 female NA NA NA 1 163.1548 0.04009 -0.7496 21.4269 0.14441",
             header = TRUE, sep = " "
         )
-    } else if (ref_name == "KIGGS") {
+    } else if (ref_name == "KiGGS") {
         data.table::fread(
             "age sex weight_m weight_l weight_s height_m height_l height_s bmi_m bmi_l bmi_s
             4 male 6.84 0.451 0.1206 64.04 0.1285 0.039 16.31 0.071 0.0937
@@ -755,7 +755,7 @@ load_ref <- function(ref_name = c("WHO", "KIGGS")) {
 
 prep_data <- function(obesity_file, 
                       control_file, 
-                      ref_name=c("WHO", "KIGGS"),
+                      ref_name=c("WHO", "KiGGS"),
                       n_train = 100,
                       center_age = FALSE, 
                       age_as_days = FALSE, 
