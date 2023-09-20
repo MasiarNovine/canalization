@@ -17,7 +17,7 @@ Running a simulation based on the general properties of the CrescNet in use.
 } 
 \arguments{ 
   \item{cresc_data:}{A `data.frame` with CrescNet data.} 
-  \item{age_bounds:}{A 2 x n `matrix` with age boundaries.} 
+  \item{age_range:}{A 2 x n `matrix` with age boundaries.} 
 } 
 \value{ 
   A `list` with as much entries as age cohorts. 

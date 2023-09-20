@@ -1,6 +1,6 @@
 \name{prep_data} 
 \alias{prep_data} 
-\usage{prep_data(obesity_file, control_file, ref_name)} 
+\usage{prep_data(obesity_file, control_file, ref_name, n_train, center_age, age_as_days, encode_sex, seed)} 
 \title{Loading an preprocessing of the CrescNet dataset.} 
 \description{ 
 Transform the raw measurements of z-scores. 
@@ -10,6 +10,11 @@ Transform the raw measurements of z-scores.
   \item{obesity_file}{CrescNet file path for obese labeled subjects.} 
   \item{control_file}{CrescNet file path for control labeled subjects.} 
   \item{ref_name}{Which reference to use.} 
+  \item{n_train}{Number of samples used for model building.} 
+  \item{center_age}{Should age be centered? Default: FALSE} 
+  \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE} 
+  \item{encode_sex}{Should sex be encoded as 1 (male) and -1 (female)? Default: FALSE} 
+  \item{seed}{Value of the seed used for random sampling of subjects. Default: 1} 
 } 
 \value{ 
  A data.frame contraining all variables of the CrescNet dataset. 

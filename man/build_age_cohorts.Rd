@@ -10,7 +10,7 @@ Creating age cohorts.
 } 
 \arguments{ 
   \item{cresc_data}{A `data.frame` with CrescNet data.} 
-  \item{age_bounds}{A 2*n `matrix` with age boundaries.} 
+  \item{age_range}{A 2*n `matrix` with age boundaries.} 
 } 
 \value{ 
   `list` with as much entries as age cohorts. 
