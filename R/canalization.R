@@ -733,7 +733,7 @@ load_ref <- function(ref_name = c("WHO", "KIGGS")) {
 
 #' \name{prep_data}
 #' \alias{prep_data}
-#' \usage{prep_data(obesity_file, control_file, ref_name)}
+#' \usage{prep_data(obesity_file, control_file, ref_name, n_train, center_age, age_as_days, encode_sex, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
@@ -743,30 +743,82 @@ load_ref <- function(ref_name = c("WHO", "KIGGS")) {
 #'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
 #'   \item{control_file}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
+#'   \item{n_train}{Number of samples used for model building.}
+#'   \item{center_age}{Should age be centered? Default: FALSE}
+#'   \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE}
+#'   \item{encode_sex}{Should sex be encoded as 1 (male) and -1 (female)? Default: FALSE}
+#'   \item{seed}{Value of the seed used for random sampling of subjects. Default: 1}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
 
-prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KIGGS")) {
+prep_data <- function(obesity_file, 
+                      control_file, 
+                      ref_name=c("WHO", "KIGGS"),
+                      n_train = 100,
+                      center_age = FALSE, 
+                      age_as_days = FALSE, 
+                      encode_sex = FALSE, 
+                      seed = 1
+) {
+    # Check, whether the reference is given
+    ref_name <- match.arg(ref_name)
+
+    # Load reference
+    ref <- load_ref(ref_name)
+    
     # Loading CrescNet data
     obese <- data.table::fread(obesity_file, header=TRUE)[, type := "obese"]
     control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
     
     # Pool data sets
     cresc_data <- rbind(obese, control)
-    setnames(cresc_data, "gestational_age", "gest_age")
     
     # Fix issues with R CMD check by defining each variable used in the data.table locally
-    age <- type <- sex <- age_group <- gestational_age <- NULL 
+    subject_id <- age <- age0 <- type <- sex <- age_group <- mid <- dupl_age <- NULL 
     height <- height_l <- height_m <- height_s <- NULL
     weight <- weight_l <- weight_m <- weight_s <- NULL
     bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
-
-    ref_name <- match.arg(ref_name)
-
-    # Load reference
-    ref <- load_ref(ref_name)
+    
+    # Introduce factors
+    cresc_data[, sex := factor(sex, levels = c("female", "male"))]
+    cresc_data[, type := factor(type, levels = c("control", "obese"))]
+    setnames(cresc_data, "gestational_age", "gest_age")
+    
+    # Encode sex continous over a range of -1 to 1 from male to female
+    if (encode_sex) {
+        cresc_data[, sex := unlist(lapply(sex, function(x) { return(if (x == "male") 1 else -1) }))]
+    }
+    
+    # Convert age in days
+    if (age_as_days) {
+        cresc_data <- cresc_data[, age := floor(age * 365.25)]
+    }
+    
+    # Enumerate measurements with ID
+    cresc_data[, mid := seq(1, length(weight), 1), by = subject_id]
+    
+    # Center age
+    if (center_age) {
+        cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
+    }
+    
+    # Get response at baseline, i.e. first measurement at approx age 0.5 years
+    start <- cresc_data[age_group == "start", list(subject_id, age, weight)]
+    setnames(start, c("weight", "age"), c("weight0", "age0"))
+    after <- cresc_data[age_group != "start", ]
+    
+    # Set keys for faster access / mergingcresc_data_cp
+    setkey(start, subject_id)
+    setkey(after, subject_id, mid)
+    cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
+    
+    # Find & remove duplicated observations
+    # Must copy explicitly because of self reference
+    cresc_data_cp <- copy(cresc_data) 
+    cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
+    cresc_data <- cresc_data[dupl_age == FALSE, ]
     
     # Transform the values based on the given reference using C++ code
     height_sds <- interpolate_to_z_score_vector_cpp(
@@ -777,6 +829,7 @@ prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KIGGS")) {
         ref[, height_m], 
         ref[, height_s]
     )
+
     weight_sds <- interpolate_to_z_score_vector_cpp(
         cresc_data[, weight],
         cresc_data[, age * 12] , 
@@ -785,6 +838,7 @@ prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KIGGS")) {
         ref[, weight_m], 
         ref[, weight_s] 
     )
+
     bmi_sds <- interpolate_to_z_score_vector_cpp(
         cresc_data[, bmi], 
         cresc_data[, age * 12], 
@@ -793,27 +847,21 @@ prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KIGGS")) {
         ref[, bmi_m], 
         ref[, bmi_s]
     )
-    res <- data.table(
-        sex = cresc_data[, sex], 
-        gestational_age = cresc_data[, gestational_age], 
-        age = cresc_data[, age], 
-        height = cresc_data[, height],
-        weight = cresc_data[, weight],
-        bmi = cresc_data[, bmi],
-        age_group = cresc_data[, age_group],
-        height_sds = height_sds,
-        weight_sds = weight_sds,
-        bmi_sds = bmi_sds,
-        type = cresc_data[, type]
-    )
-    colnames(res) <- c(
-        "sex", "gestational_age", "age", "height", "weight", "bmi", "age_group",
-        "height_sds", "weight_sds", "bmi_sds", "type"
-    )
-    # Build a data.frame with all the necessary information the
-    # prediction model should be based on
-    # sex, gestational_age (in weeks), age (in months), height, height_sds, weight, weight_sds, bmi, bmi_sds, age_group
-    return(res)
+
+    # Update dt
+    cresc_data[, weight_sds := weight_sds]
+    cresc_data[, height_sds := height_sds]
+    cresc_data[, bmi_sds := bmi_sds]
+
+    # Random sampling of subjects
+    set.seed(seed)
+    rndidx <- sample(seq(1, length(cresc_data[, unique(subject_id)]), 1), size = n_train)
+    ids <- cresc_data[, unique(subject_id)][rndidx]
+
+    # Split into test and training set for internal validation
+    cresc_train <- cresc_data[subject_id %in% ids, ]
+    cresc_test <- cresc_data[!(subject_id %in% ids), ]
+    return(list(train = cresc_train, test = cresc_test))
 }
 
 #' \name{check_columns}
@@ -850,22 +898,22 @@ check_columns <- function(cresc_data) {
 #' }
 #' \arguments{
 #'   \item{cresc_data}{A `data.frame` with CrescNet data.}
-#'   \item{age_bounds}{A 2*n `matrix` with age boundaries.}
+#'   \item{age_range}{A 2*n `matrix` with age boundaries.}
 #' }
 #' \value{
 #'   `list` with as much entries as age cohorts.
 #' }
 
-build_age_cohorts <- function(cresc_data, age_bounds) {
+build_age_cohorts <- function(cresc_data, age_range) {
     age <- NULL
 
     # Assign age ranges to observations
-    age_cohorts <- get_age_cohorts_cpp(cresc_data[, age], age_bounds)
+    age_cohorts <- get_age_cohorts_cpp(cresc_data[, age], age_range)
 
     # Create levels
     y <- gl(
-        nrow(age_bounds), 1, nrow(age_bounds), 
-        labels=paste0(age_bounds[, 1], "-", age_bounds[, 2], " years")
+        nrow(age_range), 1, nrow(age_range), 
+        labels=paste0(age_range[, 1], "-", age_range[, 2], " years")
     )
 
     # Exclude those subject, which have not been assigned to a age group
@@ -873,14 +921,13 @@ build_age_cohorts <- function(cresc_data, age_bounds) {
     
     # Exclude not assigned subjects
     res <- if (length(idx) != 0) {
-        
         # Create factors for each group but exclude to assigned subjects
-        age_bounds <- factor(paste0(age_cohorts$age_lower[-idx], "-", age_cohorts$age_upper[-idx], " years"), levels=levels(y)) 
-        cbind(cresc_data[-idx, ], age_bounds=age_bounds)
+        age_range <- factor(paste0(age_cohorts$age_lower[-idx], "-", age_cohorts$age_upper[-idx], " years"), levels=levels(y)) 
+        cbind(cresc_data[-idx, ], age_range=age_range)
     } else {
         # Create factors for each group
-        age_bounds <- factor(paste0(age_cohorts$age_lower, "-", age_cohorts$age_upper, " years"), levels=levels(y))
-        cbind(cresc_data, age_bounds=age_bounds)
+        age_range <- factor(paste0(age_cohorts$age_lower, "-", age_cohorts$age_upper, " years"), levels=levels(y))
+        cbind(cresc_data, age_range=age_range)
     }
 
     return(res)
@@ -985,7 +1032,7 @@ split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
 #' \details{
 #'   For each given age cohort, the differences of consecutive 
 #'   BMI-SDS values of every subject are calculated. If the difference 
-#'   lies in the range given by `age_bounds`, the first of each 
+#'   lies in the range given by `age_range`, the first of each 
 #'   consecutive value is used to index against the absolute BMI-SDS differences.
 #'   If `output=list`, the return is a list, with each subject as a list entry. 
 #'   The entries contain the value for the subject ID, the age difference, 
@@ -997,7 +1044,7 @@ split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
 #' }
 #' \arguments{
 #'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
-#'   \item{age_bounds:}{A 2xn `matrix` with age boundaries.}
+#'   \item{age_range:}{A 2xn `matrix` with age boundaries.}
 #'   \item{output:}{Either `list`, or `list-matrix`. Default: `list`}
 #' }
 #' \value{
@@ -1005,12 +1052,12 @@ split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
 #'   Otherwise, a list with matrices `matrix`.
 #' }
 
-get_bmi_differences <- function(cresc_data, age_bounds=c(0.5, 2), output="list", ref="WHO") {
+get_bmi_differences <- function(cresc_data, age_range=c(0.5, 2), output="list", ref="WHO") {
     check_columns(cresc_data)
 
     # Check, if the first value for the age range is smaller than the second
-    if (age_bounds[1] > age_bounds[2]) {
-        age_bounds <- c(age_bounds[2], age_bounds[1])
+    if (age_range[1] > age_range[2]) {
+        age_range <- c(age_range[2], age_range[1])
     }
 
     IDs <- unique(cresc_data$subject_id)
@@ -1025,7 +1072,7 @@ get_bmi_differences <- function(cresc_data, age_bounds=c(0.5, 2), output="list",
             if (length(idx) > 1) {
                 subject <- cresc_data[idx, ]
                 age_diff <- diff(subject$age)
-                age_idx <- which(age_diff >= age_bounds[1] & age_diff <= age_bounds[2]) 
+                age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2]) 
                 bmi_diff <- if (ref == "WHO") {
                     abs(diff(subject$bmi_sds_who))[age_idx]
                     } else if (ref == "kromeyer") {
@@ -1060,7 +1107,7 @@ get_bmi_differences <- function(cresc_data, age_bounds=c(0.5, 2), output="list",
             if (length(idx)) {
                 subject <- cresc_data[idx, ]
                 age_diff <- diff(subject$age)
-                age_idx <- which(age_diff >= age_bounds[1] & age_diff <= age_bounds[2]) 
+                age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2]) 
                 bmi_diff <- if (ref == "WHO") {
                     abs(diff(subject$bmi_sds_who))[age_idx]
                     } else if (ref == "kromeyer") {
@@ -1103,7 +1150,7 @@ get_bmi_differences <- function(cresc_data, age_bounds=c(0.5, 2), output="list",
 #' }
 #' \arguments{
 #'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
-#'   \item{age_bounds:}{A 2 x n `matrix` with age boundaries.}
+#'   \item{age_range:}{A 2 x n `matrix` with age boundaries.}
 #' }
 #' \value{
 #'   A `list` with as much entries as age cohorts.
@@ -1113,7 +1160,7 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
     ncols <- 4
 
     # Subset the original data up until age 14 years
-    cohort <- build_age_cohorts(cresc_data, age_bounds=matrix(c(0, 14), ncol=2))
+    cohort <- build_age_cohorts(cresc_data, age_range=matrix(c(0, 14), ncol=2))
 
     # Get the mean volatility & its standard deviation 
     mean_vol <- mean(cohort[[1]]$sd)
@@ -1151,98 +1198,6 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
     )
 
     return(final)
-}
-
-#' \name{build_dataset}
-#' \alias{build_dataset}
-#' \title{Preparation of input data.}
-#' \description{Preparing the specific CrescNet data from the years 2000-2022.}
-#' \usage{build_dataset(obesity_file, control_file, n_train, center_age, age_as_days, encode_sex, seed)}
-#' \arguments{
-#'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
-#'   \item{control_file}{CrescNet file path for control labeled subjects.}
-#'   \item{n_train}{Number of samples used for model building.}
-#'   \item{center_age}{Should age be centered? Default: FALSE}
-#'   \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE}
-#'   \item{encode_sex}{Should sex be encoded as zero (male) and one (female)? Default: FALSE}
-#'   \item{seed}{Value of the seed used for random sampling of subjects. Default: 1}
-#' }
-#' \details{
-#' The function expects file paths to the two CrescNet data, with the necessary variable names. 
-#' Labeling of the subjects is based on whether any measurement has been over the 95th BMI percentile or not 
-#' using the Kromeyer-Hausschild et al. (2015) reference. The data is split into a training and a test set.
-#' }
-#' \value{A list containing two 'data.table' objects, 'train' and 'test'.}
-
-build_dataset <- function(obesity_file,
-                          control_file,
-                          n_train = 100,
-                          center_age = FALSE, 
-                          age_as_days = FALSE, 
-                          encode_sex = FALSE, 
-                          seed = 1
-) {
-    # Loading CrescNet data
-    obese <- data.table::fread(obesity_file, header=TRUE)[, type := "obese"]
-    control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
-    
-    # Pool data sets
-    cresc_data <- rbind(obese, control)
-    setnames(cresc_data, "gestational_age", "gest_age")
-    
-    # Introduce variables
-    sex <- type <- age <- mid <- weight <- subject_id <- age_group <- dupl_age <- NULL
-   
-    # Take subset of variables
-    #varssub <- c("subject_id", "sex", "gest_age", "age", "height", "weight", "bmi", "height_sds", "bmi_sds", "age_group", "type")
-    #cresc_data <- cresc_data[, ..varssub]
-    
-    cresc_data[, sex := factor(sex, levels = c("female", "male"))]
-    cresc_data[, type := factor(type, levels = c("control", "obese"))]
-    
-    # Encode sex as binary factor, 0 == male, 1 == female
-    if (encode_sex) {
-        cresc_data[, sex := unlist(lapply(sex, function(x) { return(if (x == "male") 0 else 1) }))]
-    }
-    
-    # Convert age in days
-    if (age_as_days) {
-        cresc_data <- cresc_data[, age := floor(age * 365.25)]
-    }
-    
-    # Enumerate measurements with ID
-    cresc_data[, mid := seq(1, length(weight), 1), by = subject_id]
-    
-    # Center age
-    if (center_age) {
-        cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
-    }
-    
-    # Get response at baseline, i.e. first measurement at approx age 0.5 years
-    start <- cresc_data[age_group == "start", list(subject_id, age, weight)]
-    setnames(start, c("weight", "age"), c("weight0", "age0"))
-    after <- cresc_data[age_group != "start", ]
-    
-    # Set keys for faster access / merging
-    setkey(start, subject_id)
-    setkey(after, subject_id, mid)
-    cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
-    
-    # Find & remove duplicated observations
-    # Must copy explicitly because of self reference
-    cresc_data_cp <- copy(cresc_data) 
-    cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
-    cresc_data <- cresc_data[dupl_age == FALSE, ]
-    
-    # Random sampling of subjects
-    set.seed(seed)
-    rndidx <- sample(seq(1, length(cresc_data[, unique(subject_id)]), 1), size = n_train)
-    ids <- cresc_data[, unique(subject_id)][rndidx]
-    
-    # Split into test and training set for internal validation
-    cresc_train <- cresc_data[subject_id %in% ids, ]
-    cresc_test <- cresc_data[!(subject_id %in% ids), ]
-    return(list(train = cresc_train, test = cresc_test))
 }
 
 #' \name{check_mixed_model}
