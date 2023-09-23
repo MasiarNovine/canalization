@@ -1,4 +1,4 @@
-# Canalization
+# canalization
 
 This R package contains the source code used in the context of the Master's thesis at
 the University of Potsdam.
