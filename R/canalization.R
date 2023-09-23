@@ -48,23 +48,23 @@ z_score <- function(y, l, m, s) {
 #'  The relevant indices for interpolation.
 #' }
 
-get_indices <- function(age, ref, sex=c('male', 'female')) {
+get_indices <- function(age, ref, sex=c("male", "female")) {
   sex <- match.arg(sex)
   index <- 1
 
   # Get the relevant subset for the given sex
-  sexIdx <- which(ref['sex'] == sex)
+  sex_ids <- which(ref["sex"] == sex)
 
   for (i in 1:nrow(ref)) {
-    # TODO: Fails if age >> ref[i, 'age']
-    delta <- age - ref[i, 'age']
+    # TODO: Fails if age >> ref[i, "age"]
+    delta <- age - ref[i, "age"]
     if (delta < 0) {
       # This takes care of the case, if the reference does
       # not contain values for age 0
       # We jump in the next available time period, which is
       # not quite as accurate
       # but we for example lack LMS parameters for the KiGGs data
-      if (i == 1 & ref[i, 'age'] != 0) {
+      if (i == 1 & ref[i, "age"] != 0) {
         index <- i + 1
         break
       } else {
@@ -103,8 +103,8 @@ get_indices <- function(age, ref, sex=c('male', 'female')) {
 #' \seealso{See also \code{\link{get_indices}}}
 
 get_proportion <- function(age, ref, indices) {
-  delta_ref_age <- ref[indices[2], 'age'] - ref[indices[1], 'age']
-  delta_age_to_ref <- ref[indices[2], 'age'] - age
+  delta_ref_age <- ref[indices[2], "age"] - ref[indices[1], "age"]
+  delta_age_to_ref <- ref[indices[2], "age"] - age
 
   return(delta_age_to_ref / delta_ref_age)
 }
@@ -741,21 +741,23 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
 
 #' \name{prep_data}
 #' \alias{prep_data}
-#' \usage{prep_data(obesity_file, control_file, ref_name, n_train, center_age, age_as_days, encode_sex, seed)}
+#' \usage{prep_data(obesity_file, control_file, ref_name, n_train,
+#' center_age, age_as_days, encode_sex, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
 #' }
-#' \details{The function transform the raw measurements of the initial CrescNet data table to z-scores based on a given reference.}
+#' \details{The function transform the raw measurements of the initial
+#' CrescNet data table to z-scores based on a given reference.}
 #' \arguments{
 #'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
 #'   \item{control_file}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
-#'   \item{age_as_days}{Should age be given in days as integer, instead of years, i.e. double. Default: FALSE}
-#'   \item{encode_sex}{Should sex be encoded as 1 (male) and -1 (female)? Default: FALSE}
-#'   \item{seed}{Value of the seed used for random sampling of subjects. Default: 1}
+#'   \item{age_as_days}{Age given in days, instead of years? Default: FALSE}
+#'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
+#'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
@@ -796,7 +798,11 @@ prep_data <- function(obesity_file,
 
   # Encode sex continous over a range of -1 to 1 from male to female
   if (encode_sex) {
-    cresc_data[, sex := unlist(lapply(sex, function(x) { return(if (x == "male") 1 else -1) }))]
+    cresc_data[,
+      sex := unlist(
+        lapply(sex, function(x) return(if (x == "male") 1 else -1))
+      )
+    ]
   }
 
   # Convert age in days
@@ -840,7 +846,7 @@ prep_data <- function(obesity_file,
 
   weight_sds <- interpolate_to_z_score_vector_cpp(
     cresc_data[, weight],
-    cresc_data[, age * 12] ,
+    cresc_data[, age * 12],
     ref[, age],
     ref[, weight_l],
     ref[, weight_m],
@@ -949,19 +955,19 @@ build_age_cohorts <- function(cresc_data, age_range) {
 #' Split the based on given cutoff values.
 #' }
 #' \details{
-#'   Extract respective subgroups based on given percentiles for
-#'   BMI-SDS values. For each subject, it is checked, whether its endpoint
-#'   measurement is >97th percentile or not. Additionally, it is checked,
-#'   whether the last measurement is <=85th percentile, i.e. whether individual
-#'   subjects are non-obese concerning their BMI-SDS. The result is a list with
-#'   two `data.frames`:
-#'   One with the extracted values for the at-risk (non-obese) and one
-#'   for the at-risk (obese) group. The idea is to have a projective outlook
+#' Extract respective subgroups based on given percentiles for
+#' BMI-SDS values. For each subject, it is checked, whether its endpoint
+#' measurement is >97th percentile or not. Additionally, it is checked,
+#' whether the last measurement is <=85th percentile, i.e. whether individual
+#' subjects are non-obese concerning their BMI-SDS. The result is a list with
+#' two `data.frames`:
+#' One with the extracted values for the at-risk (non-obese) and one
+#' for the at-risk (obese) group. The idea is to have a projective outlook
 #' on the samples based on the respective
-#'   end measurement. Note, that the end measurement for each subject might not be the same,
-#'   but it lies approximately in the range of 14 to 18 years.
-#'   The values can be plotted to observe the change of BMI-SDS in the
-#'   course of the development of each subject.
+#' end measurement. Note, that the end measurement for each subject might
+#' not be the same, but it lies approximately in the range of 14 to 18 years.
+#' The values can be plotted to observe the change of BMI-SDS in the
+#' course of the development of each subject.
 #' }
 #' \arguments{
 #'   \item{cresc_data}{A `data.frame` with CrescNet data.}
@@ -1041,17 +1047,18 @@ split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
 #' \title{Calculate the differences of BMI-SDS}
 #' \description{Cumulative BMI differences of children}
 #' \details{
-#'   For each given age cohort, the differences of consecutive
-#'   BMI-SDS values of every subject are calculated. If the difference
-#'   lies in the range given by `age_range`, the first of each
-#'   consecutive value is used to index against the absolute BMI-SDS differences.
-#'   If `output=list`, the return is a list, with each subject as a list entry.
-#'   The entries contain the value for the subject ID, the age difference,
-#'   the BMI-SDS difference and the number of difference values.
+#' For each given age cohort, the differences of consecutive
+#' BMI-SDS values of every subject are calculated. If the difference
+#' lies in the range given by `age_range`, the first of each
+#' consecutive value is used to index against the absolute BMI-SDS
+#' differences. If `output=list`, the return is a list, with each
+#' subject as a list entry. The entries contain the value for the
+#' subject ID, the age difference, the BMI-SDS difference and the
+#' number of difference values.
 #'
-#'   If `output='list-matrix'`, the output is given as a list with the
-#'   above return but in form of matrices. The values can be plotted,
-#'   to observe the change of BMI-SDS over the age of individual subjects.
+#' If `output='list-matrix'`, the output is given as a list with the
+#' above return but in form of matrices. The values can be plotted,
+#' to observe the change of BMI-SDS over the age of individual subjects.
 #' }
 #' \arguments{
 #'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
@@ -1298,12 +1305,14 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
 #' \arguments{
 #'   \item{model}{A `gls` model.}
 #'   \item{cresc_data}{CrescNet data.table}
-#'   \item{seed}{The seed for extracting the 20 randomly drawn subjects. Default: 1}
-#'   \item{log}{Whether the logarithm for the data should be used. Default: TRUE}
+#'   \item{seed}{Seed for extracting the 20 randomly drawn subjects. Default: 1}
+#'   \item{log}{Should the logarithm for the response be used? Default: TRUE}
 #' }
 #' \details{
-#' The function can be used to observe, how the model fits body weights of 20 randomely selected subjects of a test set.
-#' Next to a `ggplot` plot with fits for each subject, the estimated weight values are appended to the initilal data.table object.
+#' The function can be used to observe, how the model fits body weights of
+#' 20 randomly selected subjects of a test set. Next to a `ggplot` plot
+#' with fits for each subject, the estimated weight values are appended
+#' to the initilal data.table object.
 #' }
 #' \value{A `ggplot` object and a `data.table` with prediction estimates.}
 
@@ -1422,7 +1431,8 @@ get_indices_cpp <- function(...) {
 #' }
 #' \value{
 #' The proportion of the difference between the lower / upper
-#' reference age bound and the difference of the the age of the child to the upper reference age bound.
+#' reference age bound and the difference of the the age of the child to the
+#' upper reference age bound.
 #' }
 #' \seealso{See also \code{\link{get_indices_cpp}}}
 get_proportion_cpp <- function(...) {
@@ -1437,13 +1447,15 @@ get_proportion_cpp <- function(...) {
 #' \details{
 #' Given the LMS parameters and raw measurements for weight, height or BMI,
 #' the given values are transformed to z-values, based on the
-#' LMS method of Cole (1991), which is commonly applied for growth curve analysis.
+#' LMS method of Cole (1991), which is commonly applied for
+#' growth curve analysis.
 #' }
 #' \arguments{
 #'   \item{...}{Arguments.}
 #' }
 #' \value{`vector` of transformed values.}
-#' \references{Cole, TJ, "The LMS method for constructing normalized growth standards",
+#' \references{Cole, TJ,
+#' "The LMS method for constructing normalized growth standards",
 #' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.}
 z_score_cpp <- function(...) {
   return(z_score_cpp(...))
@@ -1453,14 +1465,14 @@ z_score_cpp <- function(...) {
 #' \alias{lint_cpp}
 #' \title{Linear interpolation between an upper and lower value.}
 #' \usage{lint_cpp(...)}
-#' \description{Perform linear interpolation based on the lower / upper reference
-#' age bound.}
+#' \description{Perform linear interpolation based on the lower / upper
+#' reference age bound.}
 #' \arguments{
 #'  \item{...}{Arguments.}
 #' }
 #' \details{
-#' The basic functionality to perform linear interpolation using the proportion of the upper
-#' and lower age bound,
+#' The basic functionality to perform linear interpolation using the proportion
+#' of the upper and lower age bound,
 #' relevant for the respective age of a child.
 #' }
 #' \value{A 'numeric' value, representing the linear interpolation.}
