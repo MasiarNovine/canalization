@@ -1,9 +1,9 @@
-# Introduction
+# Canalization
 
 This R package contains the source code used in the context of the Master's thesis at
 the University of Potsdam.
 
-# Build
+## Building the package
 
 The package can be build by using the `make` utility:
 
