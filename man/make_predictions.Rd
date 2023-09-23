@@ -6,11 +6,13 @@
 \arguments{ 
   \item{model}{A `gls` model.} 
   \item{cresc_data}{CrescNet data.table} 
-  \item{seed}{The seed for extracting the 20 randomly drawn subjects. Default: 1} 
-  \item{log}{Whether the logarithm for the data should be used. Default: TRUE} 
+  \item{seed}{Seed for extracting the 20 randomly drawn subjects. Default: 1} 
+  \item{log}{Should the logarithm for the response be used? Default: TRUE} 
 } 
 \details{ 
-The function can be used to observe, how the model fits body weights of 20 randomely selected subjects of a test set. 
-Next to a `ggplot` plot with fits for each subject, the estimated weight values are appended to the initilal data.table object. 
+The function can be used to observe, how the model fits body weights of 
+20 randomly selected subjects of a test set. Next to a `ggplot` plot 
+with fits for each subject, the estimated weight values are appended 
+to the initilal data.table object. 
 } 
 \value{A `ggplot` object and a `data.table` with prediction estimates.} 

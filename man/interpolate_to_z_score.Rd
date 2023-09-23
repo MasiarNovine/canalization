@@ -11,7 +11,7 @@
  \item{type}{The type of the value.} 
 } 
 \details{ 
-For getting z-scores for values for ages, not covered by references tables,  
+For getting z-scores for values for ages, not covered by references tables, 
 linear transformation for ages in close proximity are used. 
 } 
 \value{ 
