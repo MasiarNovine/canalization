@@ -1218,11 +1218,11 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
   return(final)
 }
 
-#' \name{check_mixed_model}
-#' \alias{check_mixed_model}
+#' \name{check_model}
+#' \alias{check_model}
 #' \title{Checking mixed-effects model}
 #' \description{Model check applying common checks for model assessment.}
-#' \usage{check_mixed_model(model, cresc_data, seed)}
+#' \usage{check_model(model, cresc_data, seed)}
 #' \arguments{
 #'   \item{model}{A `gls` model.}
 #'   \item{cresc_data}{CrescNet data.table}
@@ -1235,7 +1235,7 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
 #' }
 #' \value{Series of `ggplot` plots.}
 
-check_mixed_model <- function(model, cresc_data, seed = 1) {
+check_model <- function(model, cresc_data, seed = 1) {
   fitted <- resid <- subject_id <- rndidx <- age <- weight <- NULL
 
   # Define plotting settings
@@ -1244,8 +1244,15 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
   theme(plot.title = element_text(hjust = 0.5))
 
   # Update initial data table
-  cresc_data[, resid := resid(model)]
-  cresc_data[, fitted := fitted(model)]
+  if (class(model) == "brmsfit") {
+    # The resid is simply the difference between the raw value and the fitted estimate
+    fi <- fitted(model)
+    cresc_data[, resid := model$data[, 1] - fi[, 1]]
+    cresc_data[, fitted := fi[, 1]]
+  } else {
+    cresc_data[, resid := resid(model)]
+    cresc_data[, fitted := fitted(model)]
+  }
 
   set.seed(seed)
   min_size <- if (length(cresc_data[, unique(subject_id)]) < 20) length(cresc_data[, unique(subject_id)]) else 20
@@ -1278,10 +1285,12 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
     labs(title = expression(bold("Fitted vs response")), x = "Age", y = "Response") +
     t
 
-  # DIAGNOSTICS PLOT: NO TREND IN WITHIN-SUBJECT CORRELATIONS
-  # Variogram for checking the correlations
-  p4 <- ggVario(Variogram(model, resType = "n"))
-
+  if (class(model) != "brmsfit") {
+    # DIAGNOSTICS PLOT: NO TREND IN WITHIN-SUBJECT CORRELATIONS
+    # Variogram for checking the correlations
+    p4 <- ggVario(Variogram(model, resType = "n"))
+  }
+  
   # DIAGNOSTICS PLOT: FITTED VS RESIDUALS
   p5 <- ggplot(cresc_data, aes(x = fitted, y = resid)) +
     geom_point(colour = blue) +
@@ -1293,7 +1302,7 @@ check_mixed_model <- function(model, cresc_data, seed = 1) {
   readline(pr); print(p1)
   readline(pr); print(p2)
   readline(pr); print(p3)
-  readline(pr); print(p4)
+  if (class(model) != "brmsfit") { readline(pr); print(p4) }
   readline(pr); print(p5)
 }
 
