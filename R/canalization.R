@@ -742,7 +742,7 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
 #' \name{prep_data}
 #' \alias{prep_data}
 #' \usage{prep_data(obesity_file, control_file, ref_name, n_train,
-#' center_age, age_as_days, encode_sex, seed)}
+#' short_ids, center_age, age_as_days, encode_sex, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
@@ -754,6 +754,7 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
 #'   \item{control_file}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
 #'   \item{n_train}{Number of samples used for model building.}
+#'   \item{short_ids}{Shorter subject IDs? Default: TRUE}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
 #'   \item{age_as_days}{Age given in days, instead of years? Default: FALSE}
 #'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
@@ -763,15 +764,13 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
 
-prep_data <- function(obesity_file,
-            control_file,
-            ref_name=c("WHO", "KiGGS"),
-            n_train = 100,
-            center_age = FALSE,
-            age_as_days = FALSE,
-            encode_sex = FALSE,
-            seed = 1
+prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS"), 
+  n_train = 100, short_ids = TRUE, center_age = FALSE, age_as_days = FALSE,
+  encode_sex = FALSE, seed = 1
 ) {
+  # Define variables
+  new_id <- N <- NULL
+
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
 
@@ -785,6 +784,13 @@ prep_data <- function(obesity_file,
   # Pool data sets
   cresc_data <- rbind(obese, control)
 
+  # Set shorter ids
+  if (short_ids) {
+    tmp <- cresc_data[, .N, by=subject_id]
+    tmp[, new_id := mcgraph::mcg.autonames("ID", length(cresc_data[, unique(subject_id)]))]
+    cresc_data[, subject_id := tmp[, rep(new_id, N)]]
+  }
+  
   # Fix issues with R CMD check by defining each variable used in the data.table locally
   subject_id <- age <- type <- sex <- age_group <- mid <- dupl_age <- NULL
   height <- height_l <- height_m <- height_s <- NULL
@@ -832,37 +838,28 @@ prep_data <- function(obesity_file,
   # Must copy explicitly because of self reference
   cresc_data_cp <- copy(cresc_data)
   cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
+
+  # Remove duplicated ages, i.e. double measurements, 
+  # TODO: Maybe average them better?
   cresc_data <- cresc_data[dupl_age == FALSE, ]
 
-  # Transform the values based on the given reference using C++ code
-  height_sds <- interpolate_to_z_score_vector_cpp(
-    cresc_data[, height],
-    cresc_data[, age * 12],
-    ref[, age],
-    ref[, height_l],
-    ref[, height_m],
+  # Transform to Z-scores using given reference
+  height_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, height],
+    cresc_data[, age * 12], ref[, age], ref[, height_l], ref[, height_m],
     ref[, height_s]
   )
 
-  weight_sds <- interpolate_to_z_score_vector_cpp(
-    cresc_data[, weight],
-    cresc_data[, age * 12],
-    ref[, age],
-    ref[, weight_l],
-    ref[, weight_m],
+  weight_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, weight],
+    cresc_data[, age * 12], ref[, age], ref[, weight_l], ref[, weight_m],
     ref[, weight_s]
   )
 
-  bmi_sds <- interpolate_to_z_score_vector_cpp(
-    cresc_data[, bmi],
-    cresc_data[, age * 12],
-    ref[, age],
-    ref[, bmi_l],
-    ref[, bmi_m],
+  bmi_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, bmi],
+    cresc_data[, age * 12], ref[, age], ref[, bmi_l], ref[, bmi_m],
     ref[, bmi_s]
   )
 
-  # Update dt
+  # Update data.table
   cresc_data[, weight_sds := weight_sds]
   cresc_data[, height_sds := height_sds]
   cresc_data[, bmi_sds := bmi_sds]
@@ -875,6 +872,7 @@ prep_data <- function(obesity_file,
   # Split into test and training set for internal validation
   cresc_train <- cresc_data[subject_id %in% ids, ]
   cresc_test <- cresc_data[!(subject_id %in% ids), ]
+
   return(list(train = cresc_train, test = cresc_test))
 }
 
