@@ -1,7 +1,7 @@
-#' \name{z_score}
-#' \alias{z_score}
+#' \name{transform_to_zscore}
+#' \alias{transform_to_zscore}
 #' \title{z-score transformation}
-#' \usage{z_score(y, l, m, s)}
+#' \usage{transform_to_zscore(y, l, m, s)}
 #' \description{
 #' Transform raw biometrical measurements to z-scores
 #' }
@@ -22,7 +22,7 @@
 #' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
 #' }
 
-z_score <- function(y, l, m, s) {
+transform_to_zscore <- function(y, l, m, s) {
   return(((y / m)^l - 1) / (l * s))
 }
 
@@ -126,14 +126,14 @@ get_proportion <- function(age, ref, indices) {
 #' }
 #' \value{A 'numeric' value, representing the linear interpolation.}
 #' \seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}},
-#' \code{\link{interpolate_to_z_score}}}
+#' \code{\link{interpolate_to_zscore}}}
 
 lint <- function(prop, low, up) {
   return(up - (prop * (up - low)))
 }
 
-#' \name{interpolate_to_z_score}
-#' \alias{interpolate_to_z_score}
+#' \name{interpolate_to_zscore}
+#' \alias{interpolate_to_zscore}
 #' \title{Linear interpolation of LMS parameters.}
 #' \description{
 #'  Interpolation of raw values of either weight, height or BMI to z-scores.
@@ -153,7 +153,7 @@ lint <- function(prop, low, up) {
 #' }
 #' \seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, \code{\link{lint}}.}
 
-interpolate_to_z_score <- function(value, age, ref, type=c("weight", "height", "bmi")) {
+interpolate_to_zscore <- function(value, age, ref, type=c("weight", "height", "bmi")) {
   type <- match.arg(type)
 
   indices <- get_indices(age, ref)
@@ -163,7 +163,7 @@ interpolate_to_z_score <- function(value, age, ref, type=c("weight", "height", "
   interpol_m <- lint(prop, ref[indices[1], paste0(type, '_m')], ref[indices[2], paste0(type, '_m')])
   interpol_s <- lint(prop, ref[indices[1], paste0(type, '_s')], ref[indices[2], paste0(type, '_s')])
 
-  return(z_score(value, interpol_l, interpol_m, interpol_s))
+  return(transform_to_zscore(value, interpol_l, interpol_m, interpol_s))
 }
 
 #' \name{load_ref}
@@ -644,76 +644,76 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
   } else if (ref_name == "KiGGS") {
     data.table::fread(
       "age sex weight_m weight_l weight_s height_m height_l height_s bmi_m bmi_l bmi_s
-      4 male 6.84 0.451 0.1206 64.04 0.1285 0.039 16.31 0.071 0.0937
-      5 male 7.45 0.3604 0.1186 66.37 0.1119 0.0375 16.73 0.0306 0.0929
-      6 male 7.96 0.2774 0.1169 68.37 0.0959 0.0363 16.97 -0.0093 0.0922
-      7 male 8.4 0.2022 0.1155 70.1 0.0806 0.0354 17.1 -0.0493 0.0914
-      8 male 8.79 0.1344 0.1144 71.63 0.0661 0.0347 17.18 -0.0898 0.0907
-      9 male 9.15 0.0734 0.1135 73.01 0.0524 0.0341 17.22 -0.1299 0.09
-      10 male 9.47 0.0188 0.1128 74.28 0.0395 0.0337 17.23 -0.17 0.0893
-      11 male 9.76 -0.0302 0.1123 75.48 0.0276 0.0335 17.18 -0.2108 0.0885
-      12 male 10.03 -0.0743 0.1119 76.63 0.0167 0.0334 17.09 -0.2513 0.0878
-      15 male 10.75 -0.1852 0.1112 79.88 -0.0111 0.0337 16.89 -0.3745 0.0858
-      18 male 11.41 -0.2778 0.111 82.88 -0.032 0.0342 16.65 -0.5004 0.084
-      21 male 12.05 -0.3615 0.1113 85.66 -0.0472 0.0348 16.46 -0.6297 0.0823
-      24 male 12.68 -0.4393 0.1117 88.21 -0.058 0.0352 16.34 -0.7629 0.0808
-      30 male 13.87 -0.5809 0.1132 92.88 -0.0698 0.0362 16.12 -1.0418 0.0784
-      36 male 15.03 -0.7111 0.1152 97.14 -0.0713 0.0375 15.94 -1.3293 0.0768
-      42 male 16.14 -0.8285 0.1177 101 -0.0646 0.0385 15.79 -1.609 0.0761
-      48 male 17.15 -0.9304 0.1206 104.56 -0.0512 0.0393 15.64 -1.865 0.0767
-      54 male 18.07 -1.0182 0.1239 107.94 -0.032 0.04 15.52 -2.0866 0.0786
-      60 male 19.05 -1.1032 0.1279 111.23 -0.0075 0.0407 15.44 -2.2676 0.0819
-      66 male 20.19 -1.1897 0.133 114.51 0.0219 0.0412 15.45 -2.4052 0.0864
-      72 male 21.5 -1.2711 0.1392 117.78 0.0562 0.0416 15.53 -2.4979 0.0919
-      78 male 22.98 -1.3401 0.1463 121.13 0.096 0.0417 15.65 -2.5461 0.0981
-      84 male 24.58 -1.3868 0.1537 124.51 0.1413 0.0419 15.81 -2.5517 0.1048
-      90 male 26.17 -1.4057 0.161 127.77 0.1915 0.042 16 -2.5191 0.1116
-      96 male 27.66 -1.4002 0.1676 130.79 0.2448 0.0424 16.21 -2.455 0.1183
-      102 male 29.25 -1.3757 0.1738 133.62 0.3008 0.0428 16.46 -2.3674 0.1247
-      108 male 31 -1.334 0.1797 136.35 0.3598 0.0434 16.74 -2.2651 0.1307
-      114 male 32.84 -1.277 0.1855 138.98 0.4219 0.0442 17.04 -2.1564 0.1361
-      120 male 34.79 -1.2054 0.1915 141.55 0.4881 0.0452 17.36 -2.0488 0.141
-      126 male 36.81 -1.1198 0.198 144.09 0.559 0.0464 17.68 -1.9481 0.1454
-      132 male 38.88 -1.0215 0.2047 146.68 0.6371 0.0478 17.99 -1.8589 0.1491
-      138 male 41 -0.9131 0.2111 149.35 0.7246 0.0492 18.3 -1.7843 0.1522
-      144 male 43.25 -0.8021 0.2166 152.22 0.8249 0.0505 18.6 -1.726 0.1546
-      150 male 45.82 -0.698 0.2209 155.43 0.9434 0.0517 18.9 -1.6839 0.1562
-      156 male 48.81 -0.6193 0.2231 159.13 1.083 0.0523 19.21 -1.6563 0.1571
-      162 male 52.14 -0.5799 0.2222 163.1 1.2386 0.052 19.52 -1.6402 0.1572
-      168 male 55.51 -0.5842 0.217 166.93 1.3973 0.0505 19.83 -1.6319 0.1567
-      174 male 58.75 -0.6427 0.2074 170.35 1.5454 0.0481 20.15 -1.6279 0.1557
-      180 male 61.69 -0.7319 0.1953 173.12 1.6711 0.0452 20.47 -1.6259 0.1542
-      186 male 64.26 -0.8264 0.1832 175.2 1.7691 0.0426 20.79 -1.6246 0.1525
-      192 male 66.3 -0.9088 0.174 176.66 1.8391 0.0405 21.1 -1.6239 0.1505
-      198 male 67.87 -0.9795 0.168 177.62 1.8857 0.0391 21.42 -1.6242 0.1484
-      204 male 69.15 -1.0401 0.1641 178.24 1.9158 0.0382 21.72 -1.6257 0.1464
-      210 male 70.3 -1.0959 0.1613 178.68 1.9374 0.0376 22.03 -1.6281 0.1443
-      216 male 71.39 -1.1482 0.1591 179.04 1.9551 0.0371 22.31 -1.6308 0.1424
-      4 female 6.25 0.0417 0.119 62.3 1 0.0404 15.73 0.0701 0.0917
-      5 female 6.82 -0.0074 0.1158 64.54 1 0.0391 16.16 0.0019 0.091
-      6 female 7.3 -0.0549 0.1134 66.48 1 0.0379 16.46 -0.0653 0.0903
-      7 female 7.72 -0.1013 0.1116 68.19 1 0.0369 16.65 -0.1325 0.0896
-      8 female 8.09 -0.1469 0.1103 69.73 1 0.0361 16.74 -0.2003 0.0889
-      9 female 8.43 -0.1904 0.1094 71.16 1 0.0355 16.76 -0.2671 0.0882
-      10 female 8.75 -0.2321 0.1088 72.53 1 0.035 16.74 -0.3336 0.0875
-      11 female 9.06 -0.2724 0.1084 73.84 1 0.0347 16.71 -0.4005 0.0869
-      12 female 9.34 -0.3101 0.1082 75.09 1 0.0344 16.66 -0.4662 0.0862
-      15 female 10.1 -0.411 0.1083 78.54 1 0.0342 16.48 -0.6606 0.0844
-      18 female 10.76 -0.4923 0.109 81.59 1 0.0346 16.26 -0.8479 0.0829
-      21 female 11.35 -0.5556 0.1099 84.28 1 0.0351 16.09 -1.0257 0.0817
-      24 female 11.95 -0.6039 0.111 86.73 1 0.0356 15.99 -1.1922 0.0809
-      30 female 13.18 -0.6711 0.1144 91.34 1 0.0364 15.83 -1.485 0.0805
-      36 female 14.42 -0.7236 0.1189 95.75 1 0.0372 15.71 -1.7197 0.0813
-      42 female 15.54 -0.7783 0.1231 99.79 1 0.0379 15.6 -1.8974 0.083
-      48 female 16.6 -0.8367 0.1273 103.51 1 0.0385 15.51 -2.0239 0.0851
-      54 female 17.69 -0.8939 0.1315 107.15 1 0.0393 15.44 -2.1066 0.0876
-      60 female 18.84 -0.9453 0.1358 110.82 1 0.0399 15.41 -2.1531 0.0904
-      66 female 20.06 -0.9871 0.1401 114.31 1 0.0404 15.42 -2.1703 0.0937
-      72 female 21.35 -1.0172 0.1448 117.59 1 0.0409 15.49 -2.1641 0.0976
-      78 female 22.7 -1.034 0.1503 120.69 1 0.0414 15.6 -2.1391 0.1025
-      84 female 24.06 -1.0369 0.1566 123.65 1 0.042 15.75 -2.0995 0.1083
-      90 female 25.48 -1.0259 0.1639 126.56 1 0.0427 15.94 -2.0487 0.115
-      96 female 27.01 -1.0011 0.1723 129.49 1 0.0434 16.15 -1.9898 0.1225
+        4  male   6.84   0.4510  0.1206   64.04   0.1285  0.0390  16.31   0.0710  0.0937
+        5  male   7.45   0.3604  0.1186   66.37   0.1119  0.0375  16.73   0.0306  0.0929
+        6  male   7.96   0.2774  0.1169   68.37   0.0959  0.0363  16.97  -0.0093  0.0922
+        7  male   8.40   0.2022  0.1155   70.10   0.0806  0.0354  17.10  -0.0493  0.0914
+        8  male   8.79   0.1344  0.1144   71.63   0.0661  0.0347  17.18  -0.0898  0.0907
+        9  male   9.15   0.0734  0.1135   73.01   0.0524  0.0341  17.22  -0.1299  0.0900
+       10  male   9.47   0.0188  0.1128   74.28   0.0395  0.0337  17.23  -0.1700  0.0893
+       11  male   9.76  -0.0302  0.1123   75.48   0.0276  0.0335  17.18  -0.2108  0.0885
+       12  male  10.03  -0.0743  0.1119   76.63   0.0167  0.0334  17.09  -0.2513  0.0878
+       15  male  10.75  -0.1852  0.1112   79.88  -0.0111  0.0337  16.89  -0.3745  0.0858
+       18  male  11.41  -0.2778  0.1110   82.88  -0.0320  0.0342  16.65  -0.5004  0.0840
+       21  male  12.05  -0.3615  0.1113   85.66  -0.0472  0.0348  16.46  -0.6297  0.0823
+       24  male  12.68  -0.4393  0.1117   88.21  -0.058   0.0352  16.34  -0.7629  0.0808
+       30  male  13.87  -0.5809  0.1132   92.88  -0.0698  0.0362  16.12  -1.0418  0.0784
+       36  male  15.03  -0.7111  0.1152   97.14  -0.0713  0.0375  15.94  -1.3293  0.0768
+       42  male  16.14  -0.8285  0.1177  101.00  -0.0646  0.0385  15.79  -1.6090  0.0761
+       48  male  17.15  -0.9304  0.1206  104.56  -0.0512  0.0393  15.64  -1.8650  0.0767
+       54  male  18.07  -1.0182  0.1239  107.94  -0.0320  0.0400  15.52  -2.0866  0.0786
+       60  male  19.05  -1.1032  0.1279  111.23  -0.0075  0.0407  15.44  -2.2676  0.0819
+       66  male  20.19  -1.1897  0.1330  114.51   0.0219  0.0412  15.45  -2.4052  0.0864
+       72  male  21.50  -1.2711  0.1392  117.78   0.0562  0.0416  15.53  -2.4979  0.0919
+       78  male  22.98  -1.3401  0.1463  121.13   0.0960  0.0417  15.65  -2.5461  0.0981
+       84  male  24.58  -1.3868  0.1537  124.51   0.1413  0.0419  15.81  -2.5517  0.1048
+       90  male  26.17  -1.4057  0.1610  127.77   0.1915  0.0420  16.00  -2.5191  0.1116
+       96  male  27.66  -1.4002  0.1676  130.79   0.2448  0.0424  16.21  -2.4550  0.1183
+      102  male  29.25  -1.3757  0.1738  133.62   0.3008  0.0428  16.46  -2.3674  0.1247
+      108  male  31.00  -1.3340  0.1797  136.35   0.3598  0.0434  16.74  -2.2651  0.1307
+      114  male  32.84  -1.2770  0.1855  138.98   0.4219  0.0442  17.04  -2.1564  0.1361
+      120  male  34.79  -1.2054  0.1915  141.55   0.4881  0.0452  17.36  -2.0488  0.1410
+      126  male  36.81  -1.1198  0.1980  144.09   0.5590  0.0464  17.68  -1.9481  0.1454
+      132  male  38.88  -1.0215  0.2047  146.68   0.6371  0.0478  17.99  -1.8589  0.1491
+      138  male  41.00  -0.9131  0.2111  149.35   0.7246  0.0492  18.30  -1.7843  0.1522
+      144  male  43.25  -0.8021  0.2166  152.22   0.8249  0.0505  18.60  -1.7260  0.1546
+      150  male  45.82  -0.6980  0.2209  155.43   0.9434  0.0517  18.90  -1.6839  0.1562
+      156  male  48.81  -0.6193  0.2231  159.13   1.0830  0.0523  19.21  -1.6563  0.1571
+      162  male  52.14  -0.5799  0.2222  163.10   1.2386  0.0520  19.52  -1.6402  0.1572
+      168  male  55.51  -0.5842  0.2170  166.93   1.3973  0.0505  19.83  -1.6319  0.1567
+      174  male  58.75  -0.6427  0.2074  170.35   1.5454  0.0481  20.15  -1.6279  0.1557
+      180  male  61.69  -0.7319  0.1953  173.12   1.6711  0.0452  20.47  -1.6259  0.1542
+      186  male  64.26  -0.8264  0.1832  175.20   1.7691  0.0426  20.79  -1.6246  0.1525
+      192  male  66.30  -0.9088  0.1740  176.66   1.8391  0.0405  21.10  -1.6239  0.1505
+      198  male  67.87  -0.9795  0.1680  177.62   1.8857  0.0391  21.42  -1.6242  0.1484
+      204  male  69.15  -1.0401  0.1641  178.24   1.9158  0.0382  21.72  -1.6257  0.1464
+      210  male  70.30  -1.0959  0.1613  178.68   1.9374  0.0376  22.03  -1.6281  0.1443
+      216  male  71.39  -1.1482  0.1591  179.04   1.9551  0.0371  22.31  -1.6308  0.1424
+       4  female 6.25 0.0417 0.119 62.3 1 0.0404 15.73 0.0701 0.0917
+       5  female 6.82 -0.0074 0.1158 64.54 1 0.0391 16.16 0.0019 0.091
+       6  female 7.3 -0.0549 0.1134 66.48 1 0.0379 16.46 -0.0653 0.0903
+       7  female 7.72 -0.1013 0.1116 68.19 1 0.0369 16.65 -0.1325 0.0896
+       8  female 8.09 -0.1469 0.1103 69.73 1 0.0361 16.74 -0.2003 0.0889
+       9  female 8.43 -0.1904 0.1094 71.16 1 0.0355 16.76 -0.2671 0.0882
+       10 female 8.75 -0.2321 0.1088 72.53 1 0.035 16.74 -0.3336 0.0875
+       11 female 9.06 -0.2724 0.1084 73.84 1 0.0347 16.71 -0.4005 0.0869
+       12 female 9.34 -0.3101 0.1082 75.09 1 0.0344 16.66 -0.4662 0.0862
+       15 female 10.1 -0.411 0.1083 78.54 1 0.0342 16.48 -0.6606 0.0844
+       18 female 10.76 -0.4923 0.109 81.59 1 0.0346 16.26 -0.8479 0.0829
+       21 female 11.35 -0.5556 0.1099 84.28 1 0.0351 16.09 -1.0257 0.0817
+       24 female 11.95 -0.6039 0.111 86.73 1 0.0356 15.99 -1.1922 0.0809
+       30 female 13.18 -0.6711 0.1144 91.34 1 0.0364 15.83 -1.485 0.0805
+       36 female 14.42 -0.7236 0.1189 95.75 1 0.0372 15.71 -1.7197 0.0813
+       42 female 15.54 -0.7783 0.1231 99.79 1 0.0379 15.6 -1.8974 0.083
+       48 female 16.6 -0.8367 0.1273 103.51 1 0.0385 15.51 -2.0239 0.0851
+       54 female 17.69 -0.8939 0.1315 107.15 1 0.0393 15.44 -2.1066 0.0876
+       60 female 18.84 -0.9453 0.1358 110.82 1 0.0399 15.41 -2.1531 0.0904
+       66 female 20.06 -0.9871 0.1401 114.31 1 0.0404 15.42 -2.1703 0.0937
+       72 female 21.35 -1.0172 0.1448 117.59 1 0.0409 15.49 -2.1641 0.0976
+       78 female 22.7 -1.034 0.1503 120.69 1 0.0414 15.6 -2.1391 0.1025
+       84 female 24.06 -1.0369 0.1566 123.65 1 0.042 15.75 -2.0995 0.1083
+       90 female 25.48 -1.0259 0.1639 126.56 1 0.0427 15.94 -2.0487 0.115
+       96 female 27.01 -1.0011 0.1723 129.49 1 0.0434 16.15 -1.9898 0.1225
       102 female 28.69 -0.9637 0.1817 132.4 1 0.0442 16.41 -1.9259 0.1304
       108 female 30.55 -0.915 0.1915 135.28 1 0.045 16.69 -1.8601 0.1383
       114 female 32.57 -0.8581 0.2014 138.18 1 0.0457 16.99 -1.7953 0.1457
@@ -739,34 +739,119 @@ load_ref <- function(ref_name = c("WHO", "KiGGS")) {
   }
 }
 
+#' \name{assign_status}
+#' \alias{assign_status}
+#' \usage{assign_status(cresc, cutoffs)}
+#' \title{Weight status assignment}
+#' \description{Assigns a weight status for each observation in the data.}
+#' \details{
+#' Based on given percentile cutoffs and categories, each observation is categorized.
+#' The argument `cutoffs` must be a named list of lists:
+#' The first list denotes the category, while the second list includes following entries
+#' with the following named entries: `lower`, `upper`, `inclower`, `incupper`, i.e. the
+#' lower / upper bound (as a numeric value), whether the lower / upper bounds should be
+#' inclusive or not (as a boolean), respectively. `lower` and `upper` are mandatory, while
+#' the two other entries are not. If not given, the default assumes inclusive bounds.
+#' }
+#' \arguments{
+#'   \item{cresc}{A data.table containing CrescNet data.}
+#'   \item{cutoffs}{BMI cutoffs used. Default: a }
+#' }
+#' \value{
+#'  A data.table containing an extra column with the assigned weight status for each observation.
+#' }
+
+assign_status <- function(cresc, cutoffs = list(
+  underweight = list(lower=NA, upper=qnorm(0.05), inclower=TRUE, incupper=FALSE),
+  normal = list(lower=qnorm(0.05), upper=qnorm(0.85), inclower=TRUE, incupper=FALSE),
+  overweight = list(lower=qnorm(0.85), upper=qnorm(0.95), inclower=TRUE, incupper=FALSE),
+  obese = list(lower=qnorm(0.95), upper=NA, inclower=TRUE, incupper=FALSE)
+  )
+) {
+    if (class(cutoffs) != "list") {
+      stop("Argument 'cutoffs' must be a list.")
+    } else if (length(cutoffs) == 0) {
+      stop("Argument 'cutoffs' must contain at least one element.")
+    } else if (is.null(names(cutoffs))) {
+        stop("Argument 'cutoffs' must be a named list (category) with each element being a named list (list arguments) itself.")
+    }
+
+    status <- bmi_sds <- NULL
+
+    cresc[, status := ""]
+    nms <- names(cutoffs)
+
+    # Find & assign end status
+    # TODO: Check the bounds, e.g. the next higher status should
+    # be inclusive of the lower bound and exclusive the upper bound
+    # at the moment it is inclusive lower and upper bound
+    for (nm in nms) {
+      catg <- names(cutoffs[[nm]])
+
+      if (!all(c("lower", "upper") %in% catg)) {
+        stop("Each named list element of 'cutoffs' must be itself a named list with at least the elements 'upper' and 'lower'. See details in ?catergorize_by_endpoint.")
+      }
+
+      lower <- if (is.na(cutoffs[[nm]]$lower)) {
+        -.Machine$integer.max
+        } else cutoffs[[nm]]$lower
+      upper <- if (is.na(cutoffs[[nm]]$upper)) {
+        .Machine$integer.max
+        } else cutoffs[[nm]]$upper
+
+      if (all(c("inclower", "incupper") %in% catg)) {
+        inclower <- cutoffs[[nm]]$inclower
+        incupper <- cutoffs[[nm]]$incupper
+
+        if (inclower & incupper) {
+          cresc[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
+        } else if (inclower & !incupper) {
+            cresc[`>=`(bmi_sds, lower) & `<`(bmi_sds, upper), status := nm]
+        } else if (!inclower & incupper) {
+            cresc[`>`(bmi_sds, lower) & `<=`(bmi_sds, upper), status := nm]
+        } else cresc[between(bmi_sds, lower, upper, incbounds = FALSE), status := nm]
+      } else cresc[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
+    }
+
+    return(cresc[, status := factor(status, levels = nms)])
+}
+
+
 #' \name{prep_data}
 #' \alias{prep_data}
 #' \usage{prep_data(obesity_file, control_file, ref_name, n_train,
-#' short_ids, center_age, age_as_days, encode_sex, seed)}
+#' center_age, age_in_days, encode_sex, short_ids, first_as_variables, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
 #' }
-#' \details{The function transform the raw measurements of the initial
-#' CrescNet data table to z-scores based on a given reference.}
+#' \details{The functions expects file paths to specific CrescNet data with the variables
+#' 'subject_id', 'sex', 'gestational_age', 'age', 'height', 'weight', 'height_sds',
+#' 'bmi', 'bmi_sds' and 'age_group'. Next to raw measurements, Z-scores for 'weight',
+#' 'height' and 'bmi' will be given based on the specified reference. Additionally options include
+#' the number of subjects used for training and testing the model, next to several options to for
+#' transforming variables.
+#'
+#' }
 #' \arguments{
 #'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
 #'   \item{control_file}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
 #'   \item{n_train}{Number of samples used for model building.}
-#'   \item{short_ids}{Shorter subject IDs? Default: TRUE}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
-#'   \item{age_as_days}{Age given in days, instead of years? Default: FALSE}
+#'   \item{age_in_days}{Age given in days, instead of years? Default: FALSE}
 #'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
+#'   \item{short_ids}{Shorter subject IDs? Default: TRUE}
+#'   \item{first_as_variables}{First measurements as separate variables? Default: TRUE}
 #'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
 
-prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS"), 
-  n_train = 100, short_ids = TRUE, center_age = FALSE, age_as_days = FALSE,
-  encode_sex = FALSE, seed = 1
+prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+  n_train = 100, center_age = FALSE, age_in_days = FALSE, encode_sex = FALSE,
+  short_ids = TRUE, first_as_variables = TRUE, seed = 1
 ) {
   # Define variables
   new_id <- N <- NULL
@@ -778,93 +863,101 @@ prep_data <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS"),
   ref <- load_ref(ref_name)
 
   # Loading CrescNet data
-  obese <- data.table::fread(obesity_file, header=TRUE)[, type := "obese"]
+  at_risk <- data.table::fread(obesity_file, header=TRUE)[, type := "at-risk"]
   control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
 
   # Pool data sets
-  cresc_data <- rbind(obese, control)
+  cresc_data <- rbind(at_risk, control)
 
-  # Set shorter ids
-  if (short_ids) {
-    tmp <- cresc_data[, .N, by=subject_id]
-    tmp[, new_id := mcgraph::mcg.autonames("ID", length(cresc_data[, unique(subject_id)]))]
-    cresc_data[, subject_id := tmp[, rep(new_id, N)]]
+  if (ref_name != "Kromeyer-Hauscshild") {
+    # Transform to Z-scores using given reference
+    # Note, that age is given in months in the reference
+    # TODO: Sex information is missing
+    # Hot fix: Included the sex indices - 1 for C++
+    height_sds <- interpolateToZscoreCpp(
+      cresc_data[, height], cresc_data[, age * 12], cresc_data[, sex],
+      ref[, age], ref[, height_l], ref[, height_m], ref[, height_s],
+      which(ref[, sex] == "female") - 1, which(ref[, sex] == "male")- 1
+    )
+
+    weight_sds <- interpolateToZscoreCpp(
+      cresc_data[, weight], cresc_data[, age * 12], ref[, age],
+      ref[, weight_l], ref[, weight_m], ref[, weight_s],
+      which(ref[, sex] == "female") - 1, which(ref[, sex] == "male") - 1
+    )
+
+    bmi_sds <- interpolateToZscoreCpp(
+      cresc_data[, bmi], cresc_data[, age * 12], ref[, age],
+      ref[, bmi_l], ref[, bmi_m], ref[, bmi_s],
+      which(ref[, sex] == "female") - 1, which(ref[, sex] == "male") - 1
+    )
+  } else {
+
   }
-  
-  # Fix issues with R CMD check by defining each variable used in the data.table locally
-  subject_id <- age <- type <- sex <- age_group <- mid <- dupl_age <- NULL
-  height <- height_l <- height_m <- height_s <- NULL
-  weight <- weight_l <- weight_m <- weight_s <- NULL
-  bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
-
-  # Introduce factors
-  cresc_data[, sex := factor(sex, levels = c("female", "male"))]
-  cresc_data[, type := factor(type, levels = c("control", "obese"))]
-  setnames(cresc_data, "gestational_age", "gest_age")
-
-  # Encode sex continous over a range of -1 to 1 from male to female
-  if (encode_sex) {
-    cresc_data[,
-      sex := unlist(
-        lapply(sex, function(x) return(if (x == "male") 1 else -1))
-      )
-    ]
-  }
-
-  # Convert age in days
-  if (age_as_days) {
-    cresc_data <- cresc_data[, age := floor(age * 365.25)]
-  }
-
-  # Enumerate measurements with ID
-  cresc_data[, mid := seq(1, length(weight), 1), by = subject_id]
-
-  # Center age
-  if (center_age) {
-    cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
-  }
-
-  # Get response at baseline, i.e. first measurement at approx age 0.5 years
-  start <- cresc_data[age_group == "start", list(subject_id, age, weight)]
-  setnames(start, c("weight", "age"), c("weight0", "age0"))
-  after <- cresc_data[age_group != "start", ]
-
-  # Set keys for faster access / mergingcresc_data_cp
-  setkey(start, subject_id)
-  setkey(after, subject_id, mid)
-  cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
-
-  # Find & remove duplicated observations
-  # Must copy explicitly because of self reference
-  cresc_data_cp <- copy(cresc_data)
-  cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
-
-  # Remove duplicated ages, i.e. double measurements, 
-  # TODO: Maybe average them better?
-  cresc_data <- cresc_data[dupl_age == FALSE, ]
-
-  # Transform to Z-scores using given reference
-  height_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, height],
-    cresc_data[, age * 12], ref[, age], ref[, height_l], ref[, height_m],
-    ref[, height_s]
-  )
-
-  weight_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, weight],
-    cresc_data[, age * 12], ref[, age], ref[, weight_l], ref[, weight_m],
-    ref[, weight_s]
-  )
-
-  bmi_sds <- interpolate_to_z_score_vector_cpp(cresc_data[, bmi],
-    cresc_data[, age * 12], ref[, age], ref[, bmi_l], ref[, bmi_m],
-    ref[, bmi_s]
-  )
 
   # Update data.table
   cresc_data[, weight_sds := weight_sds]
   cresc_data[, height_sds := height_sds]
   cresc_data[, bmi_sds := bmi_sds]
 
-  # Random sampling of subjects
+  # Set shorter ids
+  if (short_ids) {
+    tmp <- cresc_data[, .N, by=subject_id]
+    tmp[, new_id := mcgraph::mcg.autonames("ID_", length(cresc_data[, unique(subject_id)]))]
+    cresc_data[, subject_id := tmp[, rep(new_id, N)]]
+  }
+
+  # Fix issues with R CMD check by defining each variable used in the data.table locally
+  subject_id <- age <- type <- sex <- age_group <- measurement_id <- dupl_age <- NULL
+  height <- height_l <- height_m <- height_s <- NULL
+  weight <- weight_l <- weight_m <- weight_s <- NULL
+  bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
+
+  # Introduce factors
+  cresc_data[, sex := factor(sex, levels = c("female", "male"))]
+  cresc_data[, type := factor(type, levels = c("control", "at-risk"))]
+  setnames(cresc_data, "gestational_age", "gest_age")
+
+  # Encode sex continous over a range of -1 to 1 from male to female
+  if (encode_sex) {
+    cresc_data[, sex := unlist(lapply(sex, function(x) return(if (x == "male") 1 else -1)))]
+  }
+
+  # Center age
+  if (center_age) {
+    cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
+  }
+
+  if (first_as_variables) {
+    # Get response at baseline, i.e. first measurement at approx age 0.5 years
+    # Note: use list instead of . to avoid NOTE when R CMD check
+    start <- cresc_data[age_group == "start", list(subject_id, age, weight, height, bmi)]
+    setnames(start, c("age", "weight", "height", "bmi"), c("age0", "weight0", "height0", "bmi0"))
+    after <- cresc_data[age_group != "start", ]
+
+    # Set keys for faster access / merging cresc_data_cp
+    setkey(start, subject_id)
+    cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
+  }
+
+  # Find & remove duplicated observations
+  # Must copy explicitly because of self reference
+  # Remove duplicated ages, i.e. double measurements,
+  # TODO: Maybe average them better?
+  cresc_data_cp <- copy(cresc_data)
+  cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
+  cresc_data <- cresc_data[dupl_age == FALSE, ]
+  cresc_data[, dupl_age := NULL]
+
+  # Enumerate measurements with ID
+  cresc_data[, measurement_id := seq(1, length(weight), 1), by = subject_id]
+
+  # Get age in days
+  if (age_in_days) {
+    cresc_data <- cresc_data[, age := floor(age * 365.25)]
+  }
+
+  # Draw randomly subjects
   set.seed(seed)
   rndidx <- sample(seq(1, length(cresc_data[, unique(subject_id)]), 1), size = n_train)
   ids <- cresc_data[, unique(subject_id)][rndidx]
@@ -921,7 +1014,7 @@ build_age_cohorts <- function(cresc_data, age_range) {
   age <- NULL
 
   # Assign age ranges to observations
-  age_cohorts <- get_age_cohorts_cpp(cresc_data[, age], age_range)
+  age_cohorts <- getAgeCohortsCpp(cresc_data[, age], age_range)
 
   # Create levels
   y <- gl(
@@ -932,7 +1025,7 @@ build_age_cohorts <- function(cresc_data, age_range) {
   # Exclude those subject, which have not been assigned to a age group
   idx <- which(age_cohorts$age_lower == 0 & age_cohorts$age_upper == 0)
 
-  # Exclude not assigned subjects
+  # Exclude non assigned subjects
   res <- if (length(idx) != 0) {
     # Create factors for each group but exclude to assigned subjects
     age_range <- factor(paste0(age_cohorts$age_lower[-idx], "-", age_cohorts$age_upper[-idx], " years"), levels=levels(y))
@@ -1288,7 +1381,7 @@ check_model <- function(model, cresc_data, seed = 1) {
     # Variogram for checking the correlations
     p4 <- ggVario(Variogram(model, resType = "n"))
   }
-  
+
   # DIAGNOSTICS PLOT: FITTED VS RESIDUALS
   p5 <- ggplot(cresc_data, aes(x = fitted, y = resid)) +
     geom_point(colour = blue) +
@@ -1394,10 +1487,10 @@ ggVario <- function(v) {
 
 # DOCUMENTATION FOR C++ CODE
 #-------------------------------------------------------------------------
-#' \name{get_indices_cpp}
-#' \alias{get_indices_cpp}
+#' \name{getIndicesCpp}
+#' \alias{getIndicesCpp}
 #' \title{Retrieve the pair of indices for linear interpolation.}
-#' \usage{get_indices_cpp(...)}
+#' \usage{getIndicesCpp(...)}
 #' \description{Retrieve the indices for the interpolation of the
 #' LMS parameters
 #' }
@@ -1414,14 +1507,14 @@ ggVario <- function(v) {
 #' \value{
 #'  The relevant indices for interpolation.
 #' }
-get_indices_cpp <- function(...) {
-  return(get_indices_cpp(...))
+getIndicesCpp <- function(...) {
+  return(getIndicesCpp(...))
 }
 
-#' \name{get_proportion_cpp}
-#' \alias{get_proportion_cpp}
+#' \name{getProportionCpp}
+#' \alias{getProportionCpp}
 #' \title{Calculate the proportion factor for precise interpolation.}
-#' \usage{get_proportion_cpp(...)}
+#' \usage{getProportionCpp(...)}
 #' \description{
 #'  Get the relative proportion, which is necessary for interpolation.
 #' }
@@ -1441,15 +1534,15 @@ get_indices_cpp <- function(...) {
 #' reference age bound and the difference of the the age of the child to the
 #' upper reference age bound.
 #' }
-#' \seealso{See also \code{\link{get_indices_cpp}}}
-get_proportion_cpp <- function(...) {
-  return(get_proportion_cpp(...))
+#' \seealso{See also \code{\link{getIndicesCpp}}}
+getProportionCpp <- function(...) {
+  return(getProportionCpp(...))
 }
 
-#' \name{z_score_cpp}
-#' \alias{z_score_cpp}
+#' \name{calculateZScoreCpp}
+#' \alias{calculateZScoreCpp}
 #' \title{z-score transformation}
-#' \usage{z_score_cpp(...)}
+#' \usage{calculateZScoreCpp(...)}
 #' \description{Transform raw biometrical measurements to z-scores}
 #' \details{
 #' Given the LMS parameters and raw measurements for weight, height or BMI,
@@ -1464,14 +1557,14 @@ get_proportion_cpp <- function(...) {
 #' \references{Cole, TJ,
 #' "The LMS method for constructing normalized growth standards",
 #' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.}
-z_score_cpp <- function(...) {
-  return(z_score_cpp(...))
+calculateZScoreCpp <- function(...) {
+  return(calculateZScoreCpp(...))
 }
 
-#' \name{lint_cpp}
-#' \alias{lint_cpp}
+#' \name{interpolateCpp}
+#' \alias{interpolateCpp}
 #' \title{Linear interpolation between an upper and lower value.}
-#' \usage{lint_cpp(...)}
+#' \usage{interpolateCpp(...)}
 #' \description{Perform linear interpolation based on the lower / upper
 #' reference age bound.}
 #' \arguments{
@@ -1483,36 +1576,16 @@ z_score_cpp <- function(...) {
 #' relevant for the respective age of a child.
 #' }
 #' \value{A 'numeric' value, representing the linear interpolation.}
-#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}},
-#' \code{\link{interpolate_to_z_score_cpp}}}
-lint_cpp <- function(...) {
-  return(lint_cpp(...))
+#' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}},
+#' \code{\link{interpolateToZscoreCpp}}}
+interpolateCpp <- function(...) {
+  return(interpolateCpp(...))
 }
 
-#' \name{interpolate_to_z_score_cpp}
-#' \alias{interpolate_to_z_score_cpp}
+#' \name{interpolateToZscoreCpp}
+#' \alias{interpolateToZscoreCpp}
 #' \title{Linear interpolation of LMS parameters.}
-#' \usage{interpolate_to_z_score_cpp(...)}
-#' \description{Interpolation of raw values of either weight, height or BMI to z-scores.}
-#' \arguments{
-#'  \item{...}{Arguments.}
-#' }
-#' \details{
-#' For getting z-scores for values for ages, not covered by references tables,
-#' linear transformation for ages in close proximity are used.
-#' }
-#' \value{
-#' A 'vector' of z-score transforms.
-#' }
-#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
-interpolate_to_z_score_cpp <- function(...) {
-  return(interpolate_to_z_score_cpp(...))
-}
-
-#' \name{interpolate_to_z_score_vector_cpp}
-#' \alias{interpolate_to_z_score_vector_cpp}
-#' \title{Linear interpolation of LMS parameters.}
-#' \usage{interpolate_to_z_score_vector_cpp(...)}
+#' \usage{interpolateToZscoreCpp(...)}
 #' \description{
 #'  Interpolation of a vector of raw values of either weight, height or BMI to z-scores.
 #' }
@@ -1526,15 +1599,15 @@ interpolate_to_z_score_cpp <- function(...) {
 #' \value{
 #' A 'vector' of z-score transforms.
 #' }
-#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
-interpolate_to_z_score_vector_cpp <- function(...) {
-  return(interpolate_to_z_score_vector_cpp(...))
+#' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+interpolateToZscoreCpp <- function(...) {
+  return(interpolateToZscoreCpp(...))
 }
 
-#' \name{get_age_cohorts_cpp}
-#' \alias{get_age_cohorts_cpp}
+#' \name{getAgeCohortsCpp}
+#' \alias{getAgeCohortsCpp}
 #' \title{Assign age bounds to observations.}
-#' \usage{get_age_cohorts_cpp(...)}
+#' \usage{getAgeCohortsCpp(...)}
 #' \description{
 #' Get the age bounds for each observation based on the age of the subject.
 #' }
@@ -1549,15 +1622,15 @@ interpolate_to_z_score_vector_cpp <- function(...) {
 #' \value{
 #' A list of with upper and lower age bounds.
 #' }
-#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
-get_age_cohorts_cpp <- function(...) {
-  return(get_age_cohorts_cpp(...))
+#' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+getAgeCohortsCpp <- function(...) {
+  return(getAgeCohortsCpp(...))
 }
 
-#' \name{get_unique_ids_cpp}
-#' \alias{get_unique_ids_cpp}
+#' \name{getUniqueIdsCpp}
+#' \alias{getUniqueIdsCpp}
 #' \title{Retrieve unique IDs.}
-#' \usage{get_unique_ids_cpp(...)}
+#' \usage{getUniqueIdsCpp(...)}
 #' \description{Return the unique IDs for a all observations.}
 #' \arguments{
 #'  \item{...}{Arguments.}
@@ -1568,7 +1641,7 @@ get_age_cohorts_cpp <- function(...) {
 #' \value{
 #' A `vector` of unique subject names.
 #' }
-#' \seealso{See also \code{\link{get_indices_cpp}}, \code{\link{get_proportion_cpp}}, \code{\link{lint_cpp}}.}
-get_unique_ids_cpp <- function(...) {
-  return(get_unique_ids_cpp(...))
+#' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+getUniqueIdsCpp <- function(...) {
+  return(getUniqueIdsCpp(...))
 }
