@@ -15,4 +15,4 @@ relevant for the respective age of a child.
 } 
 \value{A 'numeric' value, representing the linear interpolation.} 
 \seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, 
-\code{\link{interpolate_to_z_score}}} 
+\code{\link{interpolate_to_zscore}}} 
