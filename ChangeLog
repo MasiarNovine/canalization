@@ -1,0 +1,11 @@
+ChangeLog
+=============
+
+## Version 0.3.4
+
+* Debugging of the interpolation function in C++
+
+## Version 0.3.5
+
+* Corrected interpolation function to return correct indices
+* Refactor C++ code
