@@ -17,4 +17,4 @@ linear transformation for ages in close proximity are used.
 \value{ 
 A 'vector' of z-score transforms. 
 } 
-\seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, \code{\link{lint}}.} 
+\seealso{See also \code{\link{get_indices}}, \code{\link{get_proportion}}, \code{\link{interpolate}}.} 
