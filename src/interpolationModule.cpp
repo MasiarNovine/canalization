@@ -1,35 +1,34 @@
+// [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
 #include <math.h>
 
-// [[Rcpp::depends(RcppArmadillo)]]
+// DEPRECATED, MARKED TO BE REMOVED
 /**
 * @brief Get the indices of age values in a reference vector.
 *
 * @param age The age value to find indices for.
-* @param ref_age The reference vector of age values.
-* @return A vector with two indices, indicating the position of age in ref_age.
+* @param refAge The reference vector of age values.
+* @return A vector with two indices, indicating the position of age in refAge.
 */
 // [[Rcpp::export]]
-arma::vec getIndicesCpp(float age, const arma::vec& ref_age) {
+arma::vec getIndicesCpp(float age, const arma::vec& refAge) {
     // Initialize the result vector
-    arma::vec res(2, arma::fill::zeros);
+    arma::vec indices(2, arma::fill::zeros);
 
-    // Initialize the index variable
-    int index = 0;
-
-    // Calculate the difference between age and the first element of ref_age
-    float delta = age - ref_age(0);
+    // Calculate the difference between age and the first element of refAge
+    float delta = age - refAge(0);
 
     // Check if delta is less than 0
     if (delta < 0) {
         // If delta is less than 0, set the result indices to 0 and 1
-        res(0) = index;
-        res(1) = index + 1;
+        indices(0) = 0;
+        indices(1) = 1;
     } else {
-        // Loop through the ref_age vector until delta is less than 0 or index reaches the end
-        while (delta >= 0 && index < ref_age.n_rows - 1) {
-            // Calculate the difference between age and the current element of ref_age
-            delta = age - ref_age[index];
+        // Loop through the refAge vector until delta is less than 0 or index reaches the end
+        int index = 0;
+        while (delta >= 0 && index < refAge.n_elem) {
+            // Calculate the difference between age and the current element of refAge
+            delta = age - refAge(index);
 
             // If delta is greater than or equal to 0, increment the index
             if (delta >= 0) {
@@ -38,14 +37,15 @@ arma::vec getIndicesCpp(float age, const arma::vec& ref_age) {
         }
 
         // Set the result indices to index - 1 and index
-        res(0) = index - 1;
-        res(1) = index;
+        indices(0) = index - 1;
+        indices(1) = index;
     }
 
     // Return the result vector
-    return res;
+    return indices;
 }
 
+// DEPRECATED, MARKED TO BE REMOVED
 /**
  * @brief Calculate the proportion of age relative to a reference age range
  *
@@ -66,25 +66,7 @@ float getProportionCpp(float age, const arma::vec& refAge, const arma::vec& indi
     return deltaAgeToRef / deltaRefAge;
 }
 
- /**
-  * @brief Calculate the z-score transformation of a given value.
-  *
-  * @param value The value to transform.
-  * @param power The power to raise value to.
-  * @param median The median of the distribution.
-  * @param coeffVar The coefficient of variation (normalized standard deviation) of the distribution.
-  *
-  * @return The z-score transformed value.
-  */
- // [[Rcpp::export]]
- float calculateZScoreCpp(float value, float power, float median, float coeffVar) {
-     // calculate the z-score
-     float zScore = (pow(value / median, power) - 1) / (power * coeffVar);
-
-     // return the z-score
-     return zScore;
- }
-
+// POSSIBLE DEPRECATED, MARKED TO BE REMOVED
 /**
  * @brief Interpolates a value between two given values based on a proportion.
  *
@@ -97,10 +79,40 @@ float getProportionCpp(float age, const arma::vec& refAge, const arma::vec& indi
 // [[Rcpp::export]]
 float interpolateCpp(float proportion, float lower, float upper) {
     // Calculate the interpolated value using the formula: interpolatedValue = upper - proportion * (upper - lower)
-    float interpolatedValue = upper - proportion * (upper - lower);
+    float interpolatedValue = lower + (1 - proportion) * (upper - lower);
+    //Rcpp::Rcout << "lower + (1 - proportion) * (upper - lower) = " << lower << " + " << (1 - proportion) << " * " << upper << " - " << lower << " = " << interpolatedValue << std::endl;
     return interpolatedValue;
 }
 
+ /**
+  * @brief Calculate the z-score transformation of a given value.
+  *
+  * @param value The value to transform.
+  * @param power The power to raise value to.
+  * @param median The median of the distribution.
+  * @param coeffVar The coefficient of variation (normalized standard deviation) of the distribution.
+  *
+  * @return The z-score transformed value.
+  */
+ // [[Rcpp::export]]
+float calculateZScoreCpp(float value, float power, float median, float coeffVar) {
+    // calculate the z-score
+    float zScore = (pow(value / median, power) - 1) / (power * coeffVar);
+
+    // return the z-score
+    return zScore;
+}
+
+ // [[Rcpp::export]]
+float calculateCentileCpp(float zValue, float power, float median, float coeffVar) {
+    // calculate the z-score
+    float centile = median * pow(1 + power * coeffVar * zValue, 1 / power);
+
+    // return the z-score
+    return centile;
+}
+
+// POSSIBLY DEPRECATED, MARKED TO BE REMOVED
 /**
  * @brief Interpolates input values to z-scores based on reference data.
  *
@@ -121,9 +133,9 @@ arma::vec interpolateToZscoreCpp(const arma::vec& inputValues, const arma::vec& 
                                  const arma::vec& referenceAges, const arma::vec& referenceL, const arma::vec& referenceM,
                                  const arma::vec& referenceS, const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
 ) {
-    arma::vec result(inputValues.n_rows, arma::fill::zeros);
+    arma::vec result(inputValues.n_elem, arma::fill::zeros);
 
-    for (int i = 0; i < inputValues.n_rows; i++) {
+    for (int i = 0; i < inputValues.n_elem; i++) {
         const arma::uvec& referenceIndices = (inputSexes(i) == "female") ? referenceFemaleIndices : referenceMaleIndices;
         if (!referenceIndices.is_empty()) {
             const arma::vec& indices = getIndicesCpp(inputAges(i), referenceAges(referenceIndices));
@@ -134,6 +146,103 @@ arma::vec interpolateToZscoreCpp(const arma::vec& inputValues, const arma::vec& 
                 const float interpolS = interpolateCpp(proportion, referenceS(indices(0)), referenceS(indices(1)));
                 result(i) = calculateZScoreCpp(inputValues(i), interpolL, interpolM, interpolS);
             }
+        }
+    }
+
+    return result;
+}
+
+//[[Rcpp::export]]
+arma::vec findAgeIndicesCpp(const arma::vec& inputValues, const arma::vec& inputAges,
+                            const Rcpp::StringVector& inputSexes, const arma::vec& referenceAges,
+                            const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
+) {
+    arma::vec indices(inputValues.n_elem, arma::fill::zeros);
+
+    for (int i = 0; i < inputValues.n_elem; i++) {
+        const arma::uvec& referenceIndices = (inputSexes(i) == "female") ? referenceFemaleIndices : referenceMaleIndices;
+
+        if (!referenceIndices.empty()) {
+            int index = 0;
+            float delta = referenceAges(referenceIndices(0)) - inputAges(i);
+
+            while (delta != 0 && index < referenceIndices.n_elem) {
+                delta = referenceAges(referenceIndices(index)) - inputAges(i);
+                if (delta != 0) index++;
+            }
+
+            indices(i) = index;
+        }
+    }
+
+    return indices;
+}
+
+//[[Rcpp::export]]
+arma::vec calculateZscoresCpp(const arma::vec& inputValues, const arma::vec& inputAges, const Rcpp::StringVector& inputSexes,
+                              const arma::vec& referenceAges, const arma::vec& referenceL, const arma::vec& referenceM,
+                              const arma::vec& referenceS, const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
+) {
+    arma::vec result(inputValues.n_elem, arma::fill::zeros);
+    arma::vec indices = findAgeIndicesCpp(inputValues, inputAges,
+                                       inputSexes, referenceAges,
+                                       referenceFemaleIndices, referenceMaleIndices);
+
+    if (!indices.is_empty()) {
+        for (int i = 0; i < inputValues.n_elem; i++) {
+            result(i) = calculateZScoreCpp(inputValues(i), referenceL(indices(i)), referenceM(indices(i)), referenceS(indices(i)));
+        }
+    }
+
+    return result;
+}
+
+//[[Rcpp::export]]
+arma::vec calculateCentilesCpp(const arma::vec& zValues, const arma::vec& inputAges, const Rcpp::StringVector& inputSexes,
+                               const arma::vec& referenceAges, const arma::vec& referenceL, const arma::vec& referenceM,
+                               const arma::vec& referenceS, const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
+) {
+    arma::vec result(zValues.n_elem, arma::fill::zeros);
+    arma::vec indices = findAgeIndicesCpp(zValues, inputAges,
+                                          inputSexes, referenceAges,
+                                          referenceFemaleIndices, referenceMaleIndices);
+
+    if (indices.is_empty()) {
+        for (int i = 0; i < zValues.n_elem; i++) {
+            result(i) = calculateCentileCpp(zValues(i), referenceL(indices(i)), referenceM(indices(i)), referenceS(indices(i)));
+        }
+    }
+
+    return result;
+}
+
+//[[Rcpp::export]]
+arma::vec calculateCutoffCentilesCpp(const arma::vec& zValues, const arma::vec& referenceL,
+                                     const arma::vec& referenceM, const arma::vec& referenceS
+) {
+    arma::vec result(zValues.n_elem, arma::fill::zeros);
+
+    for (int i = 0; i < zValues.n_elem; i++) {
+        result(i) = calculateCentileCpp(zValues(i), referenceL(i), referenceM(i), referenceS(i));
+    }
+
+    return result;
+}
+
+// [[Rcpp::export]]
+arma::vec assignMedianBmiCpp(const arma::vec& inputValues, const arma::vec& inputAges,
+                             const Rcpp::StringVector& inputSexes, const arma::vec& referenceAges,
+                             const arma::vec& referenceM, const arma::uvec& referenceFemaleIndices,
+                             const arma::uvec& referenceMaleIndices
+) {
+    arma::vec result(inputValues.n_elem, arma::fill::zeros);
+    arma::vec indices = findAgeIndicesCpp(inputValues, inputAges,
+                                          inputSexes, referenceAges,
+                                          referenceFemaleIndices, referenceMaleIndices);
+
+    if (!indices.is_empty()) {
+        for (int i = 0; i < inputValues.n_elem; i++) {
+            result(i) = referenceM(indices(i));
         }
     }
 
@@ -214,6 +323,12 @@ RCPP_MODULE(interpolation_module) {
     Rcpp::function("getAgeCohortsCpp", &getAgeCohortsCpp);
     Rcpp::function("getUniqueIdsCpp", &getUniqueIdsCpp);
     Rcpp::function("interpolateCpp", &interpolateCpp);
+    Rcpp::function("findAgeIndicesCpp", &findAgeIndicesCpp);
     Rcpp::function("calculateZScoreCpp", &calculateZScoreCpp);
+    Rcpp::function("calculateZscoresCpp", &calculateZscoresCpp);
+    Rcpp::function("calculateCentileCpp", &calculateCentileCpp);
+    Rcpp::function("calculateCentilesCpp", &calculateCentilesCpp);
+    Rcpp::function("calculateCutoffCentilesCpp", &calculateCutoffCentilesCpp);
     Rcpp::function("interpolateToZscoreCpp", &interpolateToZscoreCpp);
+    Rcpp::function("assignMedianBmiCpp", &assignMedianBmiCpp);
 }
