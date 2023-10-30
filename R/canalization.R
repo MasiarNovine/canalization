@@ -1,31 +1,3 @@
-#' \name{transform_to_zscore}
-#' \alias{transform_to_zscore}
-#' \title{z-score transformation}
-#' \usage{transform_to_zscore(y, l, m, s)}
-#' \description{
-#' Transform raw biometrical measurements to z-scores
-#' }
-#' \details{
-#' Given the LMS parameters and raw measurements for weight, height or BMI,
-#' the given values are transformed to z-values, based on the LMS method of
-#' Cole (1991), which is commonly applied for growth curve analysis.
-#' }
-#' \arguments{
-#'   \item{y}{Vector of values.}
-#'   \item{l}{Exponent parameter of the Box-Cox function.}
-#'   \item{m}{The median value.}
-#'   \item{s}{The standard coefficient of variance.}
-#' }
-#' \value{`vector` of transformed values.}
-#' \references{
-#' Cole, TJ, "The LMS method for constructing normalized growth standards",
-#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
-#' }
-
-transform_to_zscore <- function(y, l, m, s) {
-  return(((y / m)^l - 1) / (l * s))
-}
-
 #' \name{get_indices}
 #' \alias{get_indices}
 #' \title{Retrieve the pair of indices for linear interpolation.}
@@ -166,16 +138,101 @@ interpolate_to_zscore <- function(value, age, ref, type=c("weight", "height", "b
   return(transform_to_zscore(value, interpol_l, interpol_m, interpol_s))
 }
 
+#' \name{transform_to_zscore}
+#' \alias{transform_to_zscore}
+#' \title{z-score transformation}
+#' \usage{transform_to_zscore(y, l, m, s)}
+#' \description{
+#' Transform raw biometrical measurements to z-scores
+#' }
+#' \details{
+#' Given the LMS parameters and raw measurements for weight, height or BMI,
+#' the given values are transformed to z-values, based on the LMS method of
+#' Cole (1991), which is commonly applied for growth curve analysis.
+#' }
+#' \arguments{
+#'   \item{y}{Vector of values.}
+#'   \item{l}{Exponent parameter of the Box-Cox function.}
+#'   \item{m}{The median value.}
+#'   \item{s}{The standard coefficient of variance.}
+#' }
+#' \value{`vector` of transformed values.}
+#' \references{
+#' Cole, TJ, "The LMS method for constructing normalized growth standards",
+#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
+#' }
+
+transform_to_zscore <- function(y, l, m, s) {
+  return(((y / m)^l - 1) / (l * s))
+}
+
+#' \name{transform_to_centile}
+#' \alias{transform_to_centile}
+#' \title{Transformation of z-scores to centiles}
+#' \usage{transform_to_centile(z, l, m, s)}
+#' \description{
+#' Transform z-scores to centiles
+#' }
+#' \arguments{
+#'   \item{z}{Vector of z-scores.}
+#'   \item{l}{Exponent parameter of the Box-Cox function.}
+#'   \item{m}{The median value.}
+#'   \item{s}{The standard coefficient of variance.}
+#' }
+#' \value{`vector` of transformed values.}
+#' \references{
+#' Cole, MJ, "The LMS method for constructing normalized growth standards",
+#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
+#' }
+#' \seealso{
+#' \code{\link{transform_to_zscore}}
+#' }
+
+transform_to_centile <- function(z, l, m, s) {
+  y <- m * (1 + l * s * z)^(1/l)
+  return(y)
+}
+
+#' \name{CQV}
+#' \alias{CQV}
+#' \title{CQV}
+#' \usage{CQV(x)}
+#' \description{Calculates the CQV of a vector of values.}
+#' \arguments{
+#'   \item{x}{Vector of values.}
+#' }
+#' \value{`vector` of transformed values.}
+
+CQV <- function(x) {
+	Q3 <- quantile(x, probs=c(0.75));
+	Q1 <- quantile(x, probs=c(0.25));
+	cqv <- IQR(x) / (Q3 + Q1);
+	return(100 * cqv);
+}
+
+# TODO: Determine the L and S parameters paced on percentiles for Kromeyer-Hauschild
 #' \name{load_reference}
 #' \alias{load_reference}
 #' \title{Load reference tables.}
 #' \description{Using reference tables}
 #' \arguments{
-#'  \item{ref_name}{Either "WHO" or "KiGGS". Default: "WHO".}
+#'  \item{ref_name}{Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
+#'  \item{na_omit}{Should NAs be omitted? Logical. Default: FALSE.}
 #' }
-#' \details{Currently two reference tables are available:
-#' The World Health Organization (WHO) and the KiGGS based on the study of the Robert-Koch Institute in Germany.}
+#' \details{
+#' The World Health Organization (WHO) provides an international composite reference based on
+#' several national references from different countries and continents.
+#' `KiGGS` is a reference based on the German nation-wide KiGGS published by the Robert-Koch Institute in Germany.
+#' `Kromeyer-Hauschild` is a another German national reference. Note, that currently, for this reference values for
+#' weight are used from the `KiGGS` reference.
+#' the `KiGGS` reference.
+#' }
 #' \value{A reference as a `data.table` object.}
+#' \references{
+#' TJ Cole, "The LMS method for constructing normalized growth standards", European journal of clinical nutrition 44, 1 (1990), pp. 45-60,
+#' Stolzenberg, H., H. Kahl, and K. E. Bergmann (May 2007). “Körpermaße bei Kindern und Jugendlichen in Deutschland”. In: Bundesgesundheitsblatt - Gesundheitsforschung - Gesundheitsschutz 50.5, pp. 659–669. issn: 1437-1588. url: https://doi.org/10.1007/s00103-007-0227-5,
+#' Kromeyer-Hauschild, K. et al. (Aug. 2001). “Perzentile für den Body-mass-Index für das Kindes- und Jugendalter unter Heranziehung verschiedener deutscher Stichproben”. In: Monatsschrift Kinderheilkunde 149.8, pp. 807–818. issn: 1433-0474. url: https://doi.org/10.1007/s001120170107.
+#' }
 
 load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), na_omit=FALSE) {
   ref <- NULL
@@ -890,9 +947,6 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
     )
     if (na_omit) {
       ref <- na.omit(ref)
-      warning("Composite of Kromeyer-Hauschild (BMI, height) and KiGGS (weight). Omitted all NAs.")
-    } else {
-        warning("Composite of Kromeyer-Hauschild (BMI) and KiGGS (weight, height). Will contain NAs for missing data.")
     }
   } else {
     stop("Unknown reference name")
@@ -900,9 +954,232 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
   return(ref)
 }
 
-#' \name{assign_weight_status}
-#' \alias{assign_weight_status}
-#' \usage{assign_weight_status(cresc, cutoffs)}
+#' \name{interpolate_reference}
+#' \alias{interpolate_reference}
+#' \usage{interpolate_reference(ref_name, age_range_years, age_step)}
+#' \title{Interpolate reference values}
+#' \description{Takes a reference dataset and interpolates it to a given age range.}
+#' \details{
+#' Based on the reference dataset, the age range and the age step, the function
+#' linearly interpolates the reference values.
+#' }
+#' \arguments{
+#'   \item{ref_name}{A string specifying the reference to be interpolated.
+#' Possible values are "WHO", "KiGGS" and "Kromeyer". Default: "WHO".}
+#'   \item{age_range_years}{Age range to be interpolated. Default: c(0, 18)}
+#'   \item{age_step}{Age step to be used for interpolation. Default: 0.01}
+#' }
+#' \value{ Interpolated reference dataset. }
+
+interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                                  age_range_years = c(0, 18),
+                                  age_step = 0.01
+) {
+  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- NULL
+
+  # Check, whether the reference is given
+  ref_name <- match.arg(ref_name)
+
+  # Load reference
+  ref <- load_reference(ref_name)
+
+  # From months to year, not good, better to change the format of the
+  # reference dataset to include units
+  # TODO: Check, whether the reference is in months or years based on units
+  if (max(ref[, age]) > 20) ref[, age := age / 12]
+
+  # Set age range to be used for interpolation
+  age_interpl <- seq(min(age_range_years), max(age_range_years), abs(age_step))
+
+  # Create vector of sexes to be interpolated
+  slvl <- c("female", "male")
+
+  # Allocate LMS parameters to be interpolated
+  interpl_lms <- data.table(
+    sex = factor(rep(slvl, each = length(age_interpl)), levels = slvl),
+    age = rep(age_interpl, 2),
+    height_l = -1000, height_m = -1000, height_s = -1000,
+    weight_l = -1000, weight_m = -1000, weight_s = -1000,
+    bmi_l = -1000, bmi_m = -1000, bmi_s = -1000
+  )
+
+  # Linearly interpolate LMS parameters
+  for (s in interpl_lms[, levels(sex)]) {
+    interpl_lms[sex == s, height_l := approx(x=ref[sex == s, age], y=ref[sex == s, height_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, height_m := approx(x=ref[sex == s, age], y=ref[sex == s, height_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, height_s := approx(x=ref[sex == s, age], y=ref[sex == s, height_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, weight_l := approx(x=ref[sex == s, age], y=ref[sex == s, weight_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, weight_m := approx(x=ref[sex == s, age], y=ref[sex == s, weight_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, weight_s := approx(x=ref[sex == s, age], y=ref[sex == s, weight_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, bmi_l := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, bmi_m := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+    interpl_lms[sex == s, bmi_s := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+  }
+
+  # Round ages to 2 digits to avoid rounding errors
+  interpl_lms[, age := round(age, 2)]
+
+  return(interpl_lms)
+}
+
+#' \name{interpolate_cutoffs}
+#' \alias{interpolate_cutoffs}
+#' \usage{interpolate_cutoffs(ref_name, cutoffs, group_names, age_range_years, age_step)}
+#' \title{Interpolation of percentile BMI cutoffs}
+#' \description{Interpolate percentile BMI cutoffs for a given reference.}
+#' \details{
+#'  The function linearly interpolates percentile cutoffs for a given reference based on the
+#'  International Obesity Task Force (IOTF) cutoffs. The reference is interpolated to the age range
+#'  defined by `age_range_years` and `age_step`. The function returns a `data.table` with the
+#'  percentile cutoffs.
+#' }
+#' \arguments{
+#'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
+#'   \item{cutoffs}{Cutoffs.}
+#'   \item{group_names}{Names of the weight groups.}
+#'   \item{age_range_years}{Age range in years.}
+#'   \item{age_step}{Age step.}
+#' }
+#' \value{`data.table` of percentile cutoffs.}
+#' \references{
+#' Cole, MJ, "The LMS method for constructing normalized growth standards",
+#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
+#' }
+#' \seealso{
+#' \code{\link{interpolate_reference}}
+#' }
+
+interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                                cutoffs = c(18.5, 25.0, 30.0),
+                                group_names = c("underweight", "overweight", "obese"),
+                                age_range_years = c(0, 18),
+                                age_step = 0.01
+) {
+  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- z <- bmi_centile <- status <- NULL
+
+  # Check, whether the reference is given
+  ref_name <- match.arg(ref_name)
+
+  # Interpolated LMS parameter table
+  interpl_lms <- interpolate_reference(
+    ref_name = ref_name, age_range_years = age_range_years, age_step = age_step)[, list(sex, age, bmi_l, bmi_m, bmi_s)]
+
+  # Calculate interpolated percentile cutoffs based on cutoffs at age 18
+  prms <- interpl_lms[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
+  cts <- prms[, list(z = transform_to_zscore(cutoffs, l = bmi_l, m = bmi_m, s = bmi_s)), by = sex]
+
+  # Repeat the interpolated parameters as many times as cutoffs
+  # for each sex
+  tmp <- vector("list", length = length(interpl_lms[, levels(sex)]))
+
+  for (s in interpl_lms[, levels(sex)]) {
+    tmp[[s]] <- interpl_lms[sex == s, list(
+      age = rep(age, times = length(cutoffs)),
+      sex = rep(sex, times = length(cutoffs)),
+      bmi_l = rep(bmi_l, times = length(cutoffs)),
+      bmi_m = rep(bmi_m, times = length(cutoffs)),
+      bmi_s = rep(bmi_s, times = length(cutoffs)),
+      z = cts[sex == s, list(z = rep(z, each = nrow(interpl_lms[sex == s, ])))][, z],
+      status = rep(group_names, each = nrow(interpl_lms[sex == s, ])))
+    ]
+  }
+
+  # Collect sex specific data
+  res <- rbind(tmp[["female"]], tmp[["male"]])
+
+  # Convert status to factor
+  res[, status := factor(status, levels = group_names)]
+
+  # Transform to bmi centiles
+  res <- res[, bmi_centile := transform_to_centile(z, bmi_l, bmi_m, bmi_s)]
+
+  return(res)
+}
+
+#' \name{adiposity_status_by_bmi}
+#' \alias{adiposity_status_by_bmi}
+#' \title{Weight status assignment}
+#' \description{Assigns a weight status for each observation in the data.}
+#' \details{
+#' Based on given BMI cutoffs, the adiposity status for each observation is determined.
+#' The argument `cutoffs` must be a named list of 2-element vectors:
+#' The first element denotes the lower (inclusive) bound, while the second element
+#' denotes the upper (exclusive) bound.
+#' }
+#' \arguments{
+#'   \item{cresc_data}{A data.table containing CrescNet data.}
+#'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
+#'   \item{cutoff_bounds}{A named list with BMI cutoffs given as a 2-element vector.
+#' Default: list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA))}
+#'   \item{age_range_years}{Age range in years. Default: c(0, 18)}
+#'   \item{age_step}{Age step. Default: 0.01}
+#' }
+#' \value{
+#'  A data.table containing an extra column with the assigned weight status for each observation.
+#' }
+
+adiposity_status_by_bmi <- function(cresc_data,
+                                    ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                                    cutoff_bounds = list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA)),
+                                    age_range_years = c(0, 18),
+                                    age_step = 0.01
+) {
+  sex <- tmp_id <- age <- status <- bmi_centile <- idxlow <- idxup <- cutlow <- cutup <- st <- s <- NULL
+
+  # Collapse the cutoffs to a vector
+  cutoffs <- unlist(cutoff_bounds)
+
+  # Interpolation reference cutoffs
+  cuttab <- interpolate_cutoffs(ref_name = ref_name,
+                                cutoffs = cutoffs,
+                                group_names = names(cutoffs),
+                                age_range_years = age_range_years,
+                                age_step = age_step)[, .(age, sex, status, bmi_centile)]
+
+  # Temporary id column
+  cuttab[, tmp_id := seq(1, .N, 1)]
+
+  # Alocation of the status
+  cresc_data[, status := ""]
+  cresc_data[, tmp_id := seq(1, .N, 1)]
+  setkey(cresc_data, age)       # Sort DT in place
+  cresc_data[, .SD, by = .(age)]
+
+  # Split by sexes
+  tmp <- list(female = cresc_data[sex == "female", ],
+              male = cresc_data[sex == "male", ])
+
+  # Go trough all adiposity status
+  for (st in names(cutoff_bounds)) {
+    for (s in c("female", "male")) {
+
+      # Get the lower and upper bound
+      cutlow <- cuttab[sex == s & status == paste0(st, "1"), ]
+      cutup <- cuttab[sex == s & status == paste0(st, "2"), ]
+
+      # Index for relevant ages and sex
+      idxlow <- cresc_data[sex == s, findInterval(age, cutlow[, age])]
+      idxup <- cresc_data[sex == s, findInterval(age, cutup[, age])]
+
+      # Get the BMI
+      bmilow <- if (cutlow[idxlow, !all(is.na(bmi_centile))]) cutlow[idxlow, bmi_centile] else 0
+      bmiup <- if (cutup[idxup, !all(is.na(bmi_centile))]) cutup[idxup, bmi_centile] else .Machine$integer.max
+
+      # Update data.table
+      tmp[[s]][bmi >= bmilow & bmi < bmiup, status := st]
+    }
+  }
+
+  # Tidy up
+  res <- rbind(tmp[["female"]], tmp[["male"]])
+  res <- res[, .SD, keyby = tmp_id]
+
+  return(res[, tmp_id := NULL])
+}
+
+#' \name{adiposity_status_by_bmi_sds}
+#' \alias{adiposity_status_by_bmi_sds}
+#' \usage{adiposity_status_by_bmi_sds(cresc, cutoffs)}
 #' \title{Weight status assignment}
 #' \description{Assigns a weight status for each observation in the data.}
 #' \details{
@@ -922,12 +1199,12 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
 #'  A data.table containing an extra column with the assigned weight status for each observation.
 #' }
 
-assign_weight_status <- function(cresc, cutoffs = list(
-  underweight = list(lower=NA, upper=qnorm(0.05), inclower=TRUE, incupper=FALSE),
-  normal = list(lower=qnorm(0.05), upper=qnorm(0.85), inclower=TRUE, incupper=FALSE),
-  overweight = list(lower=qnorm(0.85), upper=qnorm(0.95), inclower=TRUE, incupper=FALSE),
-  obese = list(lower=qnorm(0.95), upper=NA, inclower=TRUE, incupper=FALSE)
-  )
+adiposity_status_by_bmi_sds <- function(cresc,
+                                        cutoffs = list(
+                                          underweight = list(lower=NA, upper=qnorm(0.05), inclower=TRUE, incupper=FALSE),
+                                          normal = list(lower=qnorm(0.05), upper=qnorm(0.85), inclower=TRUE, incupper=FALSE),
+                                          overweight = list(lower=qnorm(0.85), upper=qnorm(0.95), inclower=TRUE, incupper=FALSE),
+                                          obese = list(lower=qnorm(0.95), upper=NA, inclower=TRUE, incupper=FALSE))
 ) {
     if (class(cutoffs) != "list") {
       stop("Argument 'cutoffs' must be a list.")
@@ -972,195 +1249,6 @@ assign_weight_status <- function(cresc, cutoffs = list(
     return(cresc[, status := factor(status, levels = nms)])
 }
 
-#' \name{transform_to_centile}
-#' \alias{transform_to_centile}
-#' \title{Transformation of z-scores to centiles}
-#' \usage{transform_to_centile(z, l, m, s)}
-#' \description{
-#' Transform z-scores to centiles
-#' }
-#' \arguments{
-#'   \item{z}{Vector of z-scores.}
-#'   \item{l}{Exponent parameter of the Box-Cox function.}
-#'   \item{m}{The median value.}
-#'   \item{s}{The standard coefficient of variance.}
-#' }
-#' \value{`vector` of transformed values.}
-#' \references{
-#' Cole, MJ, "The LMS method for constructing normalized growth standards",
-#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
-#' }
-#' \seealso{
-#' \code{\link{transform_to_zscore}}
-#' }
-
-transform_to_centile <- function(z, l, m, s) {
-  y <- m * (1 + l * s * z)^(1/l)
-  return(y)
-}
-
-#' \name{CQV}
-#' \alias{CQV}
-#' \title{CQV}
-#' \usage{CQV(x)}
-#' \description{Calculates the CQV of a vector of values.}
-#' \arguments{
-#'   \item{x}{Vector of values.}
-#' }
-#' \value{`vector` of transformed values.}
-
-CQV <- function(x) {
-	Q3 <- quantile(x, probs=c(0.75));
-	Q1 <- quantile(x, probs=c(0.25));
-	cqv <- IQR(x) / (Q3 + Q1);
-	return(100 * cqv);
-}
-
-#' \name{interpolate_reference}
-#' \alias{interpolate_reference}
-#' \usage{interpolate_reference(ref_name, age_range_years, age_step)}
-#' \title{Interpolate reference values}
-#' \description{Takes a reference dataset and interpolates it to a given age range.}
-#' \details{
-#' Based on the reference dataset, the age range and the age step, the function
-#' linearly interpolates the reference values.
-#' }
-#' \arguments{
-#'   \item{ref_name}{A string specifying the reference to be interpolated.
-#' Possible values are "WHO", "KiGGS" and "Kromeyer". Default: "WHO".}
-#'   \item{age_range_years}{Age range to be interpolated. Default: c(0, 18)}
-#'   \item{age_step}{Age step to be used for interpolation. Default: 0.01}
-#' }
-#' \value{ Interpolated reference dataset. }
-
-interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-                                  age_range_years = c(0, 18),
-                                  age_step = 0.01
-) {
-  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- NULL
-
-  # Check, whether the reference is given
-  ref_name <- match.arg(ref_name)
-
-  # Load reference
-  ref <- load_reference(ref_name)
-
-  # From months to year, not good, better to change the format of the
-  # reference dataset to include units
-  # TODO: Check, whether the reference is in months or years based on units
-  if (max(ref[, age]) > 20) ref[, age := age / 12]
-
-  # Set age range to be used for interpolation
-  age_interpl <- seq(min(age_range_years), max(age_range_years), abs(age_step))
-
-  # Allocate LMS parameters to be interpolated
-  interpl_lms <- data.table(
-    sex = rep(c("male", "female"), each = length(age_interpl)),
-    age = rep(age_interpl, 2),
-    height_l = -1000, height_m = -1000, height_s = -1000,
-    weight_l = -1000, weight_m = -1000, weight_s = -1000,
-    bmi_l = -1000, bmi_m = -1000, bmi_s = -1000
-  )
-
-  # Linearly interpolate LMS parameters
-  for (s in c("male", "female")) {
-    interpl_lms[sex == s, height_l := approx(x=ref[sex == s, age], y=ref[sex == s, height_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, height_m := approx(x=ref[sex == s, age], y=ref[sex == s, height_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, height_s := approx(x=ref[sex == s, age], y=ref[sex == s, height_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_l := approx(x=ref[sex == s, age], y=ref[sex == s, weight_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_m := approx(x=ref[sex == s, age], y=ref[sex == s, weight_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_s := approx(x=ref[sex == s, age], y=ref[sex == s, weight_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_l := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_m := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_s := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-  }
-
-  # Round ages to 2 digits to avoid rounding errors
-  interpl_lms[, age := round(age, 2)]
-
-  return(interpl_lms)
-}
-
-#' \name{interpolate_cutoff_reference}
-#' \alias{interpolate_cutoff_reference}
-#' \usage{interpolate_cutoff_reference(ref_name, cutoffs, group_names, age_range_years, age_step)}
-#' \title{Interpolation of percentile BMI cutoffs}
-#' \description{Interpolate percentile BMI cutoffs for a given reference.}
-#' \details{
-#'  The values for the BMI cutoffs are inclusive bounds, i.e. >= 18.5 indicates the start of the normal
-#'  range and < 25 indicates its end. The group names are ,
-#'  where per default the first group name is "underweight" and the last group name is "obese".
-#' }
-#' \arguments{
-#'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
-#'   \item{cutoffs}{Cutoffs.}
-#'   \item{group_names}{Names of the weight groups.}
-#'   \item{age_range_years}{Age range in years.}
-#'   \item{age_step}{Age step.}
-#' }
-#' \value{`data.table` of percentile cutoffs.}
-#' \references{
-#' Cole, MJ, "The LMS method for constructing normalized growth standards",
-#' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
-#' }
-#' \seealso{
-#' \code{\link{interpolate_reference}}
-#' }
-
-interpolate_cutoff_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-                                         cutoffs = c(18.5, 25.0, 30.0),
-                                         group_names = c("underweight", "overweight", "obese"),
-                                         age_range_years = c(0, 18),
-                                         age_step = 0.01
-) {
-  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- z <- centiles <- NULL
-
-  # Check, whether the reference is given
-  ref_name <- match.arg(ref_name)
-
-  # Interpolated LMS parameter table
-  interpl_lms <- interpolate_reference(ref_name = ref_name,
-    age_range_years = age_range_years, age_step = age_step)[, list(sex, age, bmi_l, bmi_m, bmi_s)]
-
-  # Calculate interpolated percentile cutoffs based on cutoffs at age 18
-  prms <- interpl_lms[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
-  cts <- prms[, list(z = transform_to_zscore(cutoffs, l = bmi_l, m = bmi_m, s = bmi_s)), by = sex]
-
-  # Repeat the interpolated parameters as many times as cutoffs
-  res <- interpl_lms[, list(
-      age = rep(age, times = length(cutoffs)),
-      sex = rep(sex, times = length(cutoffs)),
-      bmi_l = rep(bmi_l, times = length(cutoffs)),
-      bmi_m = rep(bmi_m, times = length(cutoffs)),
-      bmi_s = rep(bmi_s, times = length(cutoffs)),
-      z = cts[, list(z = rep(z, each = nrow(interpl_lms))), by = sex][, z],
-      status = factor(group_names, levels = group_names))
-  ]
-
-  # Transform to centiles
-  return(res[, centiles := transform_to_centile(z, bmi_l, bmi_m, bmi_s)])
-}
-
-
-assign_centiles <- function(cresc_data,
-                            ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-                            cutoffs = c(18.5, 25.0, 30.0),
-                            group_names = c("underweight", "overweight", "obese"),
-                            age_range_years = c(0, 18),
-                            age_step = 0.01
-) {
-  cuttab <- interpolate_cutoff_reference(
-    ref_name = ref_name, cutoffs = cutoffs, age_range_years = age_range_years,
-    age_step = age_step)
-
-  # Assign centiles
-  # Sort by sex: male, female
-  cresc_train[, .SD, by=sex]
-
-  return(cuttab)
-}
-
-
 #' \name{assign_median_bmi}
 #' \alias{assign_median_bmi}
 #' \usage{assign_median_bmi(cresc_data, ref_name)}
@@ -1175,7 +1263,9 @@ assign_centiles <- function(cresc_data,
 #'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
 #' }
 #' \value{`data.table` with BMI median.}
+
 assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild")) {
+
   # Assign global variables
   sex <- age <- bmi <- bmi_m <- NULL
 
@@ -1202,7 +1292,6 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
 
   return(cresc_data)
 }
-
 
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
@@ -1248,7 +1337,7 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
 
   # Loading CrescNet data & pool data sets
   at_risk <- data.table::fread(obesity_file, header=TRUE)[, type := "obese*"]
-  control <- data.table::fread(control_file, header=TRUE)[, type := "control"]
+  control <- data.table::fread(control_file, header=TRUE)[, type := "control*"]
   cresc_data <- rbind(at_risk, control)
 
   # Interpolate reference
@@ -1332,7 +1421,7 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
 
   # Introduce factors
   cresc_data[, sex := factor(sex, levels = c("female", "male"))]
-  cresc_data[, type := factor(type, levels = c("control", "obese*"))]
+  cresc_data[, type := factor(type, levels = c("control*", "obese*"))]
   setnames(cresc_data, "gestational_age", "gest_age")
 
   # Encode sex continous over a range of -1 to 1 from male to female
@@ -1354,7 +1443,7 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
 
     # Set keys for faster access / merging cresc_data_cp
     setkey(start, subject_id)
-    cresc_data <- Merge(start, after, id = ~ subject_id, verbose = FALSE)
+    cresc_data <- Hmisc::Merge(start, after, id = ~ subject_id, verbose = FALSE)
   }
 
   # Find & remove duplicated observations
@@ -1384,29 +1473,6 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
   cresc_test <- cresc_data[!(subject_id %in% ids), ]
 
   return(list(train = cresc_train, test = cresc_test))
-}
-
-#' \name{check_columns}
-#' \alias{check_columns}
-#' \title{Check for mandatory columns of the input CrescNet data object.}
-#' \description{
-#' Input checking looking for mandatory variable names.
-#' }
-#' \details{
-#' A check function to look for mandatory variables names in the data
-#' object used as an input.
-#' }
-#' \arguments{
-#'   cresc_data: Input data.frame
-#' }
-
-check_columns <- function(cresc_data) {
-  must <- c("subject_id", "bmi_sds_who", "age")
-
-  if (!all(must %in% colnames(cresc_data))) {
-    missing_col <- must[which(!(must %in% colnames(cresc_data)))]
-    stop(c("Columns not found: ", paste0(missing_col, " ")))
-  }
 }
 
 #' \name{create_age_cohorts}
@@ -1454,207 +1520,6 @@ create_age_cohorts <- function(cresc_data, age_range) {
   }
 
   return(res)
-}
-
-#' \name{split_risk_groups}
-#' \alias{split_risk_groups}
-#' \title{Split the at-risk group based on percentiles}
-#' \description{
-#' Split the based on given cutoff values.
-#' }
-#' \details{
-#' Extract respective subgroups based on given percentiles for
-#' BMI-SDS values. For each subject, it is checked, whether its endpoint
-#' measurement is >97th percentile or not. Additionally, it is checked,
-#' whether the last measurement is <=85th percentile, i.e. whether individual
-#' subjects are non-obese concerning their BMI-SDS. The result is a list with
-#' two `data.frames`:
-#' One with the extracted values for the at-risk (non-obese) and one
-#' for the at-risk (obese) group. The idea is to have a projective outlook
-#' on the samples based on the respective
-#' end measurement. Note, that the end measurement for each subject might
-#' not be the same, but it lies approximately in the range of 14 to 18 years.
-#' The values can be plotted to observe the change of BMI-SDS in the
-#' course of the development of each subject.
-#' }
-#' \arguments{
-#'   \item{cresc_data}{A `data.frame` with CrescNet data.}
-#'   \item{use_p85}{Should the upper bound for the non-obese group be the 85th percentile? Default: TRUE}
-#' }
-#' \value{
-#'   A `list` with two objects of class `data.frame`.
-#' }
-
-split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
-  # IDs
-  uniIDs <- unique(cresc_data$subject_id)
-  non_obese_idx <- c()
-  obese_idx <- c()
-
-  check_columns(cresc_data)
-
-  # Cutoffs for splitting
-  p97 <- 1.88
-  p85 <- 1.036
-
-  if (use_p85) {
-    for (i in 1:length(uniIDs)) {
-      # Get all the measurements for the respective child
-      meas_idx <- grep(pattern=uniIDs[i], x=cresc_data$subject_id)
-      meas <- cresc_data[meas_idx, ]
-      bmi_sds <- if (ref == "WHO") {
-        meas$bmi_sds_who
-        } else if (ref == "kromeyer") {
-          meas$bmi_sds
-        } else {
-          meas$bmi_sds_who
-        }
-
-      # Discriminate between those, who stay above p97
-      if (length(which(meas$age_group == "end" & bmi_sds >= p97)) != 0) {
-        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
-        obese_idx <- append(obese_idx, idx)
-
-      # ... and those, who end up being under p85, i.e. 'non-obese'
-      } else if (length(which(meas$age_group == "end" & bmi_sds < p97 & bmi_sds <= p85)) != 0) {
-        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
-        non_obese_idx <- append(non_obese_idx, idx)
-      }
-    }
-  } else {
-    for (i in 1:length(uniIDs)) {
-      meas_idx <- grep(pattern=uniIDs[i], x=cresc_data$subject_id)
-      meas <- cresc_data[meas_idx, ]
-      bmi_sds <- if (ref == "WHO") {
-        meas$bmi_sds_who
-        } else if (ref == "kromeyer") {
-          meas$bmi_sds
-        } else {
-          meas$bmi_sds_who
-        }
-
-      # In this case the split is simple based on those ending >= p97 ...
-      if (length(which(meas$age_group == "end" & bmi_sds >= p97)) != 0) {
-        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
-        obese_idx <- append(obese_idx, idx)
-      }
-
-      # ... and those < p97
-      else if (length(which(meas$age_group == "end" & bmi_sds < p97)) != 0) {
-        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
-        non_obese_idx <- append(non_obese_idx, idx)
-      }
-    }
-  }
-
-  return(list(non_obese=cresc_data[non_obese_idx, ], obese=cresc_data[obese_idx, ]))
-}
-
-#' \name{get_bmi_differences}
-#' \alias{get_bmi_differences}
-#' \title{Calculate the differences of BMI-SDS}
-#' \description{Cumulative BMI differences of children}
-#' \details{
-#' For each given age cohort, the differences of consecutive
-#' BMI-SDS values of every subject are calculated. If the difference
-#' lies in the range given by `age_range`, the first of each
-#' consecutive value is used to index against the absolute BMI-SDS
-#' differences. If `output=list`, the return is a list, with each
-#' subject as a list entry. The entries contain the value for the
-#' subject ID, the age difference, the BMI-SDS difference and the
-#' number of difference values.
-#'
-#' If `output='list-matrix'`, the output is given as a list with the
-#' above return but in form of matrices. The values can be plotted,
-#' to observe the change of BMI-SDS over the age of individual subjects.
-#' }
-#' \arguments{
-#'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
-#'   \item{age_range:}{A 2xn `matrix` with age boundaries.}
-#'   \item{output:}{Either `list`, or `list-matrix`. Default: `list`}
-#' }
-#' \value{
-#'   Either a list with the subjects and their informations.
-#'   Otherwise, a list with matrices `matrix`.
-#' }
-
-get_bmi_differences <- function(cresc_data, age_range=c(0.5, 2), output="list", ref="WHO") {
-  check_columns(cresc_data)
-
-  # Check, if the first value for the age range is smaller than the second
-  if (age_range[1] > age_range[2]) {
-    age_range <- c(age_range[2], age_range[1])
-  }
-
-  IDs <- unique(cresc_data$subject_id)
-
-  if (output == "list") {
-
-    # Pre-allocate
-    res <- vector("list", length(IDs))
-
-    for (i in 1:length(IDs)) {
-      idx <- grep(cresc_data$subject_id, pattern=IDs[i])
-      if (length(idx) > 1) {
-        subject <- cresc_data[idx, ]
-        age_diff <- diff(subject$age)
-        age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2])
-        bmi_diff <- if (ref == "WHO") {
-          abs(diff(subject$bmi_sds_who))[age_idx]
-          } else if (ref == "kromeyer") {
-            abs(diff(subject$bmi_sds))[age_idx]
-          } else {
-            abs(diff(subject$bmi_sds_who))[age_idx]
-          }
-        tmp <- list(
-          subject_id=IDs[i],
-          age=subject$age[age_idx],
-          bmi_diff=bmi_diff,
-          n=length(bmi_diff)
-        )
-        res[[i]] <- tmp
-      }
-    }
-
-    return(res)
-
-  } else if (output == "list-matrix") {
-
-    # Pre-allocate matrix, differences must be n - 1
-    n_cols <- max(table(cresc_data$subject_id)) - 1
-    n_rows <- length(IDs)
-    y <- matrix(NA, ncol=n_cols, nrow=n_rows)
-    x <- matrix(NA, ncol=n_cols, nrow=n_rows)
-    n_samples <- rep(0, n_rows)
-
-    # Iteratively check for each subject whether the differences are fine
-    for (i in 1:length(IDs)) {
-      idx <- grep(cresc_data$subject_id, pattern=IDs[i])
-      if (length(idx)) {
-        subject <- cresc_data[idx, ]
-        age_diff <- diff(subject$age)
-        age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2])
-        bmi_diff <- if (ref == "WHO") {
-          abs(diff(subject$bmi_sds_who))[age_idx]
-          } else if (ref == "kromeyer") {
-            abs(diff(subject$bmi_sds))[age_idx]
-          } else {
-            abs(diff(subject$bmi_sds_who))[age_idx]
-          }
-        y[i, seq_along(bmi_diff)] <- bmi_diff
-        x[i, seq_along(age_idx)] <- subject$age[age_idx]
-        n_samples[i] <- length(bmi_diff)
-      }
-    }
-    # Trim matrix
-    trimmed <- which(colSums(is.na(y)) == nrow(y))
-    res <- list(subject_id=IDs, age=x[, -trimmed], diff_bmi_sds=y[, -trimmed], n=n_samples)
-
-    return(res)
-
-  } else {
-    stop("Output option not known.")
-  }
 }
 
 #' \name{run_simulation}
@@ -1895,48 +1760,277 @@ ggVario <- function(v) {
 #' \alias{theme_elegant}
 #' \title{Custom ggplot theme}
 #' \description{A customized ggplot theme}
-#' \usage{theme_elegant(base_size, base_family, legend.title, legend.position)}
+#' \usage{
+#'  theme_elegant(base_size, base_family, legend.title, legend.position,plot.background, strip.text, strip.text.y)
+#' }
 #' \arguments{
-#'   \item{base_size}{The base font size}
-#'   \item{base_family}{The base font family}
-#'   \item{legend.title}{The title of the legend}
-#'   \item{legend.position}{The position of the legend}
+#'   \item{base_size}{The base font size.}
+#'   \item{base_family}{The base font family.}
+#'   \item{legend.title}{The title of the legend.}
+#'   \item{legend.position}{The position of the legend.}
+#'   \item{plot.background}{The background of the plot.}
+#'   \item{strip.text}{The text of the strip.}
+#'   \item{strip.text.y}{The text of the strip in y direction.}
 #' }
 #' \details{
 #' A customized ggplot theme.
 #' }
 #' \value{A `ggplot` theme.}
-# A more simplistic, but yet elegant theme for the ggplot
+
 theme_elegant <- function(base_size = 11,
                           base_family ="Fira Sans",
                           legend.title = element_blank(),
-                          legend.position = "bottom"
+                          legend.position = "bottom",
+                          plot.background = element_rect(fill = "white", colour = "white"),
+                          strip.text = element_text(face ="plain",
+                                                    size = rel(0.8),
+                                                    hjust = 0.1,
+                                                    margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm")),
+                          strip.text.y = element_text(angle = 0,
+                                                      margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm"))
 ) {
     theme_bw(base_size = base_size, base_family = base_family) %+replace%
     theme(
-        strip.background = element_rect(fill = "white", colour = "white"),
-        strip.placement ="outside",
-        legend.position =legend.position,
-        strip.text = element_text(face ="bold", size = rel(0.8), hjust = 0.1),
-        strip.text.y = element_text(angle = 0),
-        panel.border = element_rect(fill = NA, colour = "white"),
-        panel.grid = element_line(colour = "white"),
-            axis.line = element_line(colour = "black", linewidth = 0.25),
+        axis.line = element_line(colour = "black", linewidth = 0.25),
         axis.line.x = NULL,
         axis.line.y = NULL,
-        legend.title = legend.title
+        legend.position =legend.position,
+        legend.title = legend.title,
+        panel.border = element_rect(fill = NA, colour = "white"),
+        panel.grid = element_line(colour = "white"),
+        plot.background = plot.background,
+        strip.background = element_rect(fill = "white", colour = "white"),
+        strip.placement ="outside",
+        strip.text = strip.text,
+        strip.text.y = strip.text.y,
     )
 }
 
-###  place startup loads here
-.onLoad <- function(libname, pkgname) {
-  # to show a startup message
-  # example on how to initialize a Tcl package
-  # tcltk::.Tcl(paste("lappend auto_path",file.path(system.file(package="Rpkg"),"pantcl", "lib")))
-  # tcltk::.Tcl("package require tclfilters")
-  # tools::vignetteEngine("pantcl",package=pkgname,weave=pantcl,tangle=ptangle)
-  # Expose the interpolation module to R
-  Rcpp::loadModule("interpolation_module", TRUE)
+# TODO: DEPRECATED
+#' \name{check_columns}
+#' \alias{check_columns}
+#' \title{Check for mandatory columns of the input CrescNet data object.}
+#' \description{
+#' Input checking looking for mandatory variable names.
+#' }
+#' \details{
+#' A check function to look for mandatory variables names in the data
+#' object used as an input.
+#' }
+#' \arguments{
+#'   cresc_data: Input data.frame
+#' }
+
+check_columns <- function(cresc_data) {
+  must <- c("subject_id", "bmi_sds_who", "age")
+
+  if (!all(must %in% colnames(cresc_data))) {
+    missing_col <- must[which(!(must %in% colnames(cresc_data)))]
+    stop(c("Columns not found: ", paste0(missing_col, " ")))
+  }
+}
+
+# TODO: DEPRECATED
+#' \name{split_risk_groups}
+#' \alias{split_risk_groups}
+#' \title{Split the at-risk group based on percentiles}
+#' \description{
+#' Split the based on given cutoff values.
+#' }
+#' \details{
+#' Extract respective subgroups based on given percentiles for
+#' BMI-SDS values. For each subject, it is checked, whether its endpoint
+#' measurement is >97th percentile or not. Additionally, it is checked,
+#' whether the last measurement is <=85th percentile, i.e. whether individual
+#' subjects are non-obese concerning their BMI-SDS. The result is a list with
+#' two `data.frames`:
+#' One with the extracted values for the at-risk (non-obese) and one
+#' for the at-risk (obese) group. The idea is to have a projective outlook
+#' on the samples based on the respective
+#' end measurement. Note, that the end measurement for each subject might
+#' not be the same, but it lies approximately in the range of 14 to 18 years.
+#' The values can be plotted to observe the change of BMI-SDS in the
+#' course of the development of each subject.
+#' }
+#' \arguments{
+#'   \item{cresc_data}{A `data.frame` with CrescNet data.}
+#'   \item{use_p85}{Should the upper bound for the non-obese group be the 85th percentile? Default: TRUE}
+#' }
+#' \value{
+#'   A `list` with two objects of class `data.frame`.
+#' }
+
+split_risk_groups <- function(cresc_data, use_p85=TRUE, ref="WHO") {
+  # IDs
+  uniIDs <- unique(cresc_data$subject_id)
+  non_obese_idx <- c()
+  obese_idx <- c()
+
+  check_columns(cresc_data)
+
+  # Cutoffs for splitting
+  p97 <- 1.88
+  p85 <- 1.036
+
+  if (use_p85) {
+    for (i in 1:length(uniIDs)) {
+      # Get all the measurements for the respective child
+      meas_idx <- grep(pattern=uniIDs[i], x=cresc_data$subject_id)
+      meas <- cresc_data[meas_idx, ]
+      bmi_sds <- if (ref == "WHO") {
+        meas$bmi_sds_who
+        } else if (ref == "kromeyer") {
+          meas$bmi_sds
+        } else {
+          meas$bmi_sds_who
+        }
+
+      # Discriminate between those, who stay above p97
+      if (length(which(meas$age_group == "end" & bmi_sds >= p97)) != 0) {
+        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
+        obese_idx <- append(obese_idx, idx)
+
+      # ... and those, who end up being under p85, i.e. 'non-obese'
+      } else if (length(which(meas$age_group == "end" & bmi_sds < p97 & bmi_sds <= p85)) != 0) {
+        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
+        non_obese_idx <- append(non_obese_idx, idx)
+      }
+    }
+  } else {
+    for (i in 1:length(uniIDs)) {
+      meas_idx <- grep(pattern=uniIDs[i], x=cresc_data$subject_id)
+      meas <- cresc_data[meas_idx, ]
+      bmi_sds <- if (ref == "WHO") {
+        meas$bmi_sds_who
+        } else if (ref == "kromeyer") {
+          meas$bmi_sds
+        } else {
+          meas$bmi_sds_who
+        }
+
+      # In this case the split is simple based on those ending >= p97 ...
+      if (length(which(meas$age_group == "end" & bmi_sds >= p97)) != 0) {
+        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
+        obese_idx <- append(obese_idx, idx)
+      }
+
+      # ... and those < p97
+      else if (length(which(meas$age_group == "end" & bmi_sds < p97)) != 0) {
+        idx <- which(unique(meas$subject_id) == cresc_data$subject_id)
+        non_obese_idx <- append(non_obese_idx, idx)
+      }
+    }
+  }
+
+  return(list(non_obese=cresc_data[non_obese_idx, ], obese=cresc_data[obese_idx, ]))
+}
+
+# TODO: DEPRECATED
+#' \name{get_bmi_differences}
+#' \alias{get_bmi_differences}
+#' \title{Calculate the differences of BMI-SDS}
+#' \description{Cumulative BMI differences of children}
+#' \details{
+#' For each given age cohort, the differences of consecutive
+#' BMI-SDS values of every subject are calculated. If the difference
+#' lies in the range given by `age_range`, the first of each
+#' consecutive value is used to index against the absolute BMI-SDS
+#' differences. If `output=list`, the return is a list, with each
+#' subject as a list entry. The entries contain the value for the
+#' subject ID, the age difference, the BMI-SDS difference and the
+#' number of difference values.
+#'
+#' If `output='list-matrix'`, the output is given as a list with the
+#' above return but in form of matrices. The values can be plotted,
+#' to observe the change of BMI-SDS over the age of individual subjects.
+#' }
+#' \arguments{
+#'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
+#'   \item{age_range:}{A 2xn `matrix` with age boundaries.}
+#'   \item{output:}{Either `list`, or `list-matrix`. Default: `list`}
+#' }
+#' \value{
+#'   Either a list with the subjects and their informations.
+#'   Otherwise, a list with matrices `matrix`.
+#' }
+
+get_bmi_differences <- function(cresc_data, age_range=c(0.5, 2), output="list", ref="WHO") {
+  check_columns(cresc_data)
+
+  # Check, if the first value for the age range is smaller than the second
+  if (age_range[1] > age_range[2]) {
+    age_range <- c(age_range[2], age_range[1])
+  }
+
+  IDs <- unique(cresc_data$subject_id)
+
+  if (output == "list") {
+
+    # Pre-allocate
+    res <- vector("list", length(IDs))
+
+    for (i in 1:length(IDs)) {
+      idx <- grep(cresc_data$subject_id, pattern=IDs[i])
+      if (length(idx) > 1) {
+        subject <- cresc_data[idx, ]
+        age_diff <- diff(subject$age)
+        age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2])
+        bmi_diff <- if (ref == "WHO") {
+          abs(diff(subject$bmi_sds_who))[age_idx]
+          } else if (ref == "kromeyer") {
+            abs(diff(subject$bmi_sds))[age_idx]
+          } else {
+            abs(diff(subject$bmi_sds_who))[age_idx]
+          }
+        tmp <- list(
+          subject_id=IDs[i],
+          age=subject$age[age_idx],
+          bmi_diff=bmi_diff,
+          n=length(bmi_diff)
+        )
+        res[[i]] <- tmp
+      }
+    }
+
+    return(res)
+
+  } else if (output == "list-matrix") {
+
+    # Pre-allocate matrix, differences must be n - 1
+    n_cols <- max(table(cresc_data$subject_id)) - 1
+    n_rows <- length(IDs)
+    y <- matrix(NA, ncol=n_cols, nrow=n_rows)
+    x <- matrix(NA, ncol=n_cols, nrow=n_rows)
+    n_samples <- rep(0, n_rows)
+
+    # Iteratively check for each subject whether the differences are fine
+    for (i in 1:length(IDs)) {
+      idx <- grep(cresc_data$subject_id, pattern=IDs[i])
+      if (length(idx)) {
+        subject <- cresc_data[idx, ]
+        age_diff <- diff(subject$age)
+        age_idx <- which(age_diff >= age_range[1] & age_diff <= age_range[2])
+        bmi_diff <- if (ref == "WHO") {
+          abs(diff(subject$bmi_sds_who))[age_idx]
+          } else if (ref == "kromeyer") {
+            abs(diff(subject$bmi_sds))[age_idx]
+          } else {
+            abs(diff(subject$bmi_sds_who))[age_idx]
+          }
+        y[i, seq_along(bmi_diff)] <- bmi_diff
+        x[i, seq_along(age_idx)] <- subject$age[age_idx]
+        n_samples[i] <- length(bmi_diff)
+      }
+    }
+    # Trim matrix
+    trimmed <- which(colSums(is.na(y)) == nrow(y))
+    res <- list(subject_id=IDs, age=x[, -trimmed], diff_bmi_sds=y[, -trimmed], n=n_samples)
+
+    return(res)
+
+  } else {
+    stop("Output option not known.")
+  }
 }
 
 # DOCUMENTATION FOR C++ CODE
@@ -1961,6 +2055,7 @@ theme_elegant <- function(base_size = 11,
 #' \value{
 #'  The relevant indices for interpolation.
 #' }
+
 getIndicesCpp <- function(...) {
   return(getIndicesCpp(...))
 }
@@ -1989,6 +2084,7 @@ getIndicesCpp <- function(...) {
 #' upper reference age bound.
 #' }
 #' \seealso{See also \code{\link{getIndicesCpp}}}
+
 getProportionCpp <- function(...) {
   return(getProportionCpp(...))
 }
@@ -2011,6 +2107,7 @@ getProportionCpp <- function(...) {
 #' \references{Cole, TJ,
 #' "The LMS method for constructing normalized growth standards",
 #' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.}
+
 calculateZScoreCpp <- function(...) {
   return(calculateZScoreCpp(...))
 }
@@ -2036,7 +2133,6 @@ calculateZScoreCpp <- function(...) {
 calculateZscoresCpp <- function(...) {
   return(calculateZscoresCpp(...))
 }
-
 
 #' \name{findAgeIndicesCpp}
 #' \alias{findAgeIndicesCpp}
@@ -2079,7 +2175,6 @@ calculateCentilesCpp <- function(...) {
   return(calculateCentilesCpp(...))
 }
 
-
 #' \name{assignMedianBmiCpp}
 #' \alias{assignMedianBmiCpp}
 #' \title{Assign the median BMI to the children.}
@@ -2093,6 +2188,7 @@ calculateCentilesCpp <- function(...) {
 #' }
 #' \value{`vector` of transformed values.}
 #' \seealso{See also \code{\link{findAgeIndicesCpp}}}
+
 assignMedianBmiCpp <- function(...) {
   return(assignMedianBmiCpp(...))
 }
@@ -2114,6 +2210,7 @@ assignMedianBmiCpp <- function(...) {
 #' \value{A 'numeric' value, representing the linear interpolation.}
 #' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}},
 #' \code{\link{interpolateToZscoreCpp}}}
+
 interpolateCpp <- function(...) {
   return(interpolateCpp(...))
 }
@@ -2136,6 +2233,7 @@ interpolateCpp <- function(...) {
 #' A 'vector' of z-score transforms.
 #' }
 #' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+
 interpolateToZscoreCpp <- function(...) {
   return(interpolateToZscoreCpp(...))
 }
@@ -2159,6 +2257,7 @@ interpolateToZscoreCpp <- function(...) {
 #' A list of with upper and lower age bounds.
 #' }
 #' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+
 getAgeCohortsCpp <- function(...) {
   return(getAgeCohortsCpp(...))
 }
@@ -2178,6 +2277,18 @@ getAgeCohortsCpp <- function(...) {
 #' A `vector` of unique subject names.
 #' }
 #' \seealso{See also \code{\link{getIndicesCpp}}, \code{\link{getProportionCpp}}, \code{\link{interpolateCpp}}.}
+
 getUniqueIdsCpp <- function(...) {
   return(getUniqueIdsCpp(...))
+}
+
+###  place startup loads here
+.onLoad <- function(libname, pkgname) {
+  # to show a startup message
+  # example on how to initialize a Tcl package
+  # tcltk::.Tcl(paste("lappend auto_path",file.path(system.file(package="Rpkg"),"pantcl", "lib")))
+  # tcltk::.Tcl("package require tclfilters")
+  # tools::vignetteEngine("pantcl",package=pkgname,weave=pantcl,tangle=ptangle)
+  # Expose the interpolation module to R
+  Rcpp::loadModule("interpolation_module", TRUE)
 }
