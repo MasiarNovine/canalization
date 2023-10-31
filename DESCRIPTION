@@ -1,7 +1,7 @@
 Package: canalization
 Type: Package
 Title: Bayesian workflow to investigate weight volatility of German children from 2000-2022 based on data from the CrescNet network (Leipzig)
-Version: 0.3.5
+Version: 0.3.6
 Date: 2023-09-05
 Author: Masiar Novine, University of Potsdam
 Maintainer: Masiar Novine <masiar.novine@gmail.com>
