@@ -1798,30 +1798,6 @@ theme_elegant <- function(base_size = 11,
     )
 }
 
-# TODO: DEPRECATED
-#' \name{check_columns}
-#' \alias{check_columns}
-#' \title{Check for mandatory columns of the input CrescNet data object.}
-#' \description{
-#' Input checking looking for mandatory variable names.
-#' }
-#' \details{
-#' A check function to look for mandatory variables names in the data
-#' object used as an input.
-#' }
-#' \arguments{
-#'   cresc_data: Input data.frame
-#' }
-
-check_columns <- function(cresc_data) {
-  must <- c("subject_id", "bmi_sds_who", "age")
-
-  if (!all(must %in% colnames(cresc_data))) {
-    missing_col <- must[which(!(must %in% colnames(cresc_data)))]
-    stop(c("Columns not found: ", paste0(missing_col, " ")))
-  }
-}
-
 # DOCUMENTATION FOR C++ CODE
 #-------------------------------------------------------------------------
 #' \name{getIndicesCpp}
