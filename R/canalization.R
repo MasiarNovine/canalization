@@ -973,8 +973,7 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
 
 interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
                                   age_range_years = c(0, 18),
-                                  age_step = 0.01
-) {
+                                  age_step = 0.01) {
   sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- NULL
 
   # Check, whether the reference is given
@@ -1045,9 +1044,7 @@ interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild
 #' Cole, MJ, "The LMS method for constructing normalized growth standards",
 #' European journal of clinical nutrition 44, 1 (1990), pp. 45-60.
 #' }
-#' \seealso{
-#' \code{\link{interpolate_reference}}
-#' }
+#' \seealso{\code{\link{interpolate_reference}}}
 
 interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
                                 cutoffs = c(18.5, 25.0, 30.0),
@@ -1109,14 +1106,11 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
 #' \arguments{
 #'   \item{cresc_data}{A data.table containing CrescNet data.}
 #'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
-#'   \item{cutoff_bounds}{A named list with BMI cutoffs given as a 2-element vector.
-#' Default: list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA))}
+#'   \item{cutoff_bounds}{A named list with BMI cutoffs given as a 2-element vector. Default: list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA))}
 #'   \item{age_range_years}{Age range in years. Default: c(0, 18)}
 #'   \item{age_step}{Age step. Default: 0.01}
 #' }
-#' \value{
-#'  A data.table containing an extra column with the assigned weight status for each observation.
-#' }
+#' \value{A data.table containing an extra column with the assigned weight status for each observation.}
 
 adiposity_status_by_bmi <- function(cresc_data,
                                     ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
@@ -1124,7 +1118,7 @@ adiposity_status_by_bmi <- function(cresc_data,
                                     age_range_years = c(0, 18),
                                     age_step = 0.01
 ) {
-  sex <- tmp_id <- age <- status <- bmi_centile <- idxlow <- idxup <- cutlow <- cutup <- st <- s <- NULL
+  bmi <- sex <- tmp_id <- age <- status <- bmi_centile <- idxlow <- idxup <- cutlow <- cutup <- st <- s <- NULL
 
   # Collapse the cutoffs to a vector
   cutoffs <- unlist(cutoff_bounds)
@@ -1134,7 +1128,7 @@ adiposity_status_by_bmi <- function(cresc_data,
                                 cutoffs = cutoffs,
                                 group_names = names(cutoffs),
                                 age_range_years = age_range_years,
-                                age_step = age_step)[, .(age, sex, status, bmi_centile)]
+                                age_step = age_step)[, list(age, sex, status, bmi_centile)]
 
   # Temporary id column
   cuttab[, tmp_id := seq(1, .N, 1)]
@@ -1143,7 +1137,7 @@ adiposity_status_by_bmi <- function(cresc_data,
   cresc_data[, status := ""]
   cresc_data[, tmp_id := seq(1, .N, 1)]
   setkey(cresc_data, age)       # Sort DT in place
-  cresc_data[, .SD, by = .(age)]
+  cresc_data[, .SD, by = list(age)]
 
   # Split by sexes
   tmp <- list(female = cresc_data[sex == "female", ],
@@ -1193,11 +1187,9 @@ adiposity_status_by_bmi <- function(cresc_data,
 #' }
 #' \arguments{
 #'   \item{cresc}{A data.table containing CrescNet data.}
-#'   \item{cutoffs}{BMI cutoffs used. Default: a }
+#'   \item{cutoffs}{BMI cutoffs used.}
 #' }
-#' \value{
-#'  A data.table containing an extra column with the assigned weight status for each observation.
-#' }
+#' \value{A data.table containing an extra column with the assigned weight status for each observation.}
 
 adiposity_status_by_bmi_sds <- function(cresc,
                                         cutoffs = list(
@@ -2160,19 +2152,38 @@ findAgeIndicesCpp <- function(...) {
 
 #' \name{calculateCentilesCpp}
 #' \alias{calculateCentilesCpp}
-#' \title{Calculate the centiles for the LMS parameters.}
+#' \title{Calculation of centiles.}
 #' \usage{calculateCentilesCpp(...)}
-#' \description{Calculate the centiles for the LMS parameters.}
+#' \description{Calculates the centiles for a vector of z-values.}
 #' \details{
-#' Calculate the centiles for the LMS parameters.
+#' This function converts a vector of z-values to centiles based on the LMS method of Cole (1991).
 #' }
 #' \arguments{
 #'  \item{...}{Arguments.}
 #' }
 #' \value{`vector` of transformed values.}
-#' \seealso{See also \code{\link{calculateZScoreCpp}}}
+#' \seealso{See also \code{\link{calculateCentileCpp}}, \code{\link{calculateZScoreCpp}}}
 calculateCentilesCpp <- function(...) {
   return(calculateCentilesCpp(...))
+}
+
+#' \name{calculateCentileCpp}
+#' \alias{calculateCentileCpp}
+#' \title{Single centile calculation.}
+#' \usage{calculateCentileCpp(...)}
+#' \description{Calculate a single centile based on given LMS parameters.}
+#' \details{
+#' This function deterines the centile based on the given LMS parameters using
+#' the LMS method of Cole (1991), which is commonly applied for growth curve analysis
+#' based on the formula `centile = median * (1 + L * S * z)^(1 / L)`.
+#' }
+#' \arguments{
+#'  \item{...}{Arguments.}
+#' }
+#' \value{A single centile value.}
+#' \seealso{See also \code{\link{calculateCentilesCpp}}, \code{\link{calculateZScoreCpp}}}
+calculateCentileCpp <- function(...) {
+  return(calculateCentileCpp(...))
 }
 
 #' \name{assignMedianBmiCpp}
