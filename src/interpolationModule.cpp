@@ -216,7 +216,7 @@ arma::vec calculateCentilesCpp(const arma::vec& zValues, const arma::vec& inputA
     return result;
 }
 
-//[[Rcpp::export]]
+// This function is not used anymore.
 arma::vec calculateCutoffCentilesCpp(const arma::vec& zValues, const arma::vec& referenceL,
                                      const arma::vec& referenceM, const arma::vec& referenceS
 ) {
@@ -328,7 +328,6 @@ RCPP_MODULE(interpolation_module) {
     Rcpp::function("calculateZscoresCpp", &calculateZscoresCpp);
     Rcpp::function("calculateCentileCpp", &calculateCentileCpp);
     Rcpp::function("calculateCentilesCpp", &calculateCentilesCpp);
-    Rcpp::function("calculateCutoffCentilesCpp", &calculateCutoffCentilesCpp);
     Rcpp::function("interpolateToZscoreCpp", &interpolateToZscoreCpp);
     Rcpp::function("assignMedianBmiCpp", &assignMedianBmiCpp);
 }
