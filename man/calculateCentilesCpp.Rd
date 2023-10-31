@@ -1,13 +1,13 @@
 \name{calculateCentilesCpp} 
 \alias{calculateCentilesCpp} 
-\title{Calculate the centiles for the LMS parameters.} 
+\title{Calculation of centiles.} 
 \usage{calculateCentilesCpp(...)} 
-\description{Calculate the centiles for the LMS parameters.} 
+\description{Calculates the centiles for a vector of z-values.} 
 \details{ 
-Calculate the centiles for the LMS parameters. 
+This function converts a vector of z-values to centiles based on the LMS method of Cole (1991). 
 } 
 \arguments{ 
  \item{...}{Arguments.} 
 } 
 \value{`vector` of transformed values.} 
-\seealso{See also \code{\link{calculateZScoreCpp}}} 
+\seealso{See also \code{\link{calculateCentileCpp}}, \code{\link{calculateZScoreCpp}}} 
