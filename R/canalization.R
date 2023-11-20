@@ -1524,73 +1524,59 @@ create_age_cohorts <- function(cresc_data, age_range) {
   return(res)
 }
 
-#' \name{run_simulation}
-#' \alias{run_simulation}
+#' \name{do_simulation}
+#' \alias{do_simulation}
 #' \title{Run a sampling simulation to emulate CrescNet data filtering}
 #' \description{
 #' Running a simulation based on the general properties of the CrescNet in use.
 #' }
 #' \details{
-#'   The CrescNet data was filtered by certain selection criteria e.g., the values for
-#'   the at-risk group have to be over the 97th percentile, while the control
-#'   contains subjects, which had never any measurement over the 97th percentile.
-#'   This might introduce a bias into the sample, because those subjects
-#'   having a high variance of measurement values but do not end obese,
-#'   would be filtered out of the control, lowering the overall variance of this group.
-#'   This effect might be small, but must be investigated.
-#'   The simulation allows for emulate such effects. Note, that currently the age is
-#'   not modeled.
+#' Simulation function to investigate the effect of the stratified sampling, i.e.
+#' the use of split criteria on the association of the BMI mean and standard deviation (SD).
+#'
 #' }
 #' \arguments{
-#'   \item{cresc_data:}{A `data.frame` with CrescNet data.}
-#'   \item{age_range:}{A 2 x n `matrix` with age boundaries.}
+#' \item{cresc_data:}{A `data.frame` with CrescNet data.}
+#' \item{n_subjects:}{Number of simulated subjects. Default: 1000.}
+#' \item{k:}{Number of observations per subject. Default: 20.}
+#' \item{n_pop:}{Number of observations in the population. Default: 1e5.}
+#' \item{split:}{Split criterion. Default: 0.97.}
 #' }
 #' \value{
-#'   A `list` with as much entries as age cresc_data.
+#' A `list` with with two data.tables: `sample` and `aggregated`.
 #' }
 
-run_simulation <- function(cresc_data, n=1000, n_samples=10) {
-  ncols <- 4
+do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, split = 0.97) {
+    bmi_sds <- mean_var <- mu_bmi <- sd_var <- subject_id <- type <- var_bmi <- NULL
 
-  # Subset the original data up until age 14 years
-  cohort <- create_age_cohorts(cresc_data, age_range=matrix(c(0, 14), ncol=2))
+    # Get the BMI-SDS variability for each groups
+    varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = .(subject_id, type)]
 
-  # Get the mean volatility & its standard deviation
-  mean_vol <- mean(cohort[[1]]$sd)
-  sd_vol <- sd(cohort[[1]]$sd)
+    # Collect the mean and standard deviation of the variabiliy
+    varpars <- varsubj[, list(mean_var = mean(sd), sd_var = sd(sd)), by = .(type)]
 
-  # Generate a matrix of random BMI-SDS values based on a normal distribution
-  rand_bmi <- rnorm(n=n, mean=0, sd=1)
+    # Define a normal distribution representing the overall population with the empirical variability
+    # of each subpopulation
+    pop <- varpars[, list(mu_bmi = rnorm(n_pop, 0, 1), var_bmi = rnorm(n_pop, mean_var, sd_var)), by = type]
+    pop[, subject_id := mcg.autonames("ID_", n = .N)]
 
-  # Generate a matrix of random volatility BMI-SDS values
-  rand_vol <- rnorm(n=n, mean=mean_vol, sd=sd_vol)
+    # Sample artificial subjects with k observations with mu and sigma from each distribution
+    # This is too slow right now
+    bmi_pop <- pop[, list(bmi_sds = rnorm(k, mu_bmi, abs(var_bmi))), by = subject_id]
 
-  # Third matrix with random samples based on random picked control SD and on subject value as mean
-  values <- matrix(NA, ncol=1, nrow=n*n_samples)
+    # Simulate 97th centile selection re assign type
+    pop_ob_subj <- bmi_pop[which(bmi_sds > qnorm(split, 0, 1)), unique(subject_id)]
+    bmi_pop[subject_id %in% pop_ob_subj, type := "Obese*"]
+    bmi_pop[!(subject_id %in% pop_ob_subj), type := "Control*"]
 
-  # Age groups
-  age_group <- rep("interval", n * n_samples)
+    subs_ob_subj <- sample(pop_ob_subj, n_subjects)
+    subs_ctrl_subj <- sample(bmi_pop[!(subject_id %in% pop_ob_subj), subject_id], n_subjects)
 
-  # Generation of data
-  tmp <- rep(0, n_samples)
-  seq_iter <- seq(1, n * n_samples - (n_samples - 1), n_samples)
+    # Sample of 1000 subjects
+    sampl <- bmi_pop[subject_id %in% c(subs_ob_subj, subs_ctrl_subj), .SD]
+    agg <- sampl[, .(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
 
-  for (i in 1:(n)) {
-    for (j in 1:n_samples) {
-      tmp[j] <- rnorm(n=1, mean=rand_bmi[i], sd=abs(sample(rand_vol, 1)))
-    }
-    iter <- seq_iter[i]:(seq_iter[i] + n_samples - 1)
-    values[iter, 1] <- tmp
-  }
-
-  # subject_id, sex, age_group, bmi_sds_who
-  final <- data.frame(
-    subject_id=rep(mcg.autonames("S", n), each=n_samples),
-    age_group=age_group,
-    bmi_sds_who=values
-  )
-
-  return(final)
+    return(list(sample = sampl, aggregated = agg))
 }
 
 #' \name{check_model}
