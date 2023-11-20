@@ -1085,7 +1085,7 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
   }
 
   # Collect sex specific data
-  res <- rbind(tmp[["female"]], tmp[["male"]])
+  res <- rbind(tmp[[interp_lms[, levels(sex)][1]]], tmp[[interp_lms[, levels(sex)][1]]])
 
   # Convert status to factor
   res[, status := factor(status, levels = groups)]
@@ -1144,12 +1144,12 @@ adiposity_status_bmi <- function(cresc_data,
   cresc_data[, .SD, by = list(age)]
 
   # Split by sexes
-  tmp <- list(female = cresc_data[sex == "female", ],
-              male = cresc_data[sex == "male", ])
+  tmp <- list(female = cresc_data[sex == levels(sex)[1], ],
+              male = cresc_data[sex == levels(sex)[2], ])
 
   # Go trough all adiposity status
   for (st in names(bounds)) {
-    for (s in c("female", "male")) {
+    for (s in cresc_data[, levels(sex)]) {
 
       # Get the lower and upper bound
       cutlow <- cuttab[sex == s & status == paste0(st, "1"), ]
@@ -1169,7 +1169,7 @@ adiposity_status_bmi <- function(cresc_data,
   }
 
   # Tidy up
-  res <- rbind(tmp[["female"]], tmp[["male"]])
+  res <- rbind(tmp[[cresc_data[, levels(sex)][1]]], tmp[[cresc_data[, levels(sex)][2]]])
   res <- res[, .SD, keyby = tmp_id]
 
   return(res[, tmp_id := NULL])
@@ -1274,8 +1274,8 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
   cresc_data[, bmi_m := -1000];
 
   # Map the age the interpolated LMS parameters
-  ref_indices_female <- interp_lms[, which(sex == "female")] - 1
-  ref_indices_male <- interp_lms[, which(sex == "male")] - 1
+  ref_indices_female <- interp_lms[, which(sex == levels(sex)[1])] - 1
+  ref_indices_male <- interp_lms[, which(sex == levels(sex)[2])] - 1
 
   bmimed <- assignMedianBmiCpp(
     cresc_data[, bmi], cresc_data[, age],
@@ -1357,8 +1357,8 @@ prepare_dataset <- function(file_obese,
   cresc_data[, weight_sds_alt := -1000];
 
   # Map the age the interpolated LMS parameters
-  ref_indices_female <- interp_lms[, which(sex == "female")] - 1
-  ref_indices_male <- interp_lms[, which(sex == "male")] - 1
+  ref_indices_female <- interp_lms[, which(sex == levels(sex)[1])] - 1
+  ref_indices_male <- interp_lms[, which(sex == levels(sex)[2])] - 1
 
   height_sds_new <- calculateZscoresCpp(
     cresc_data[, height], cresc_data[, age], cresc_data[, sex],
@@ -1388,8 +1388,8 @@ prepare_dataset <- function(file_obese,
   # Note, that age is given in months in the reference
   # TODO: Sex information is missing
   # Hot fix: Included the sex indices - 1 for C++
-  # ref_indices_female <- ref[, which(sex == "female")] - 1
-  # ref_indices_male <- ref[, which(sex == "male")] - 1
+  # ref_indices_female <- ref[, which(sex == levels(sex)[1])] - 1
+  # ref_indices_male <- ref[, which(sex == levels(sex)[2])] - 1
 
   # height_sds_new <- interpolateToZscoreCpp(
   #   cresc_data[, height], cresc_data[, age * 12], cresc_data[, sex],
