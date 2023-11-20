@@ -1071,21 +1071,21 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
   # Repeat the interpolated parameters as many times as cutoffs
   # for each sex
   tmp <- vector("list", length = length(interp_lms[, levels(sex)]))
+  names(tmp) <- interp_lms[, levels(sex)]
 
   for (s in interp_lms[, levels(sex)]) {
     tmp[[s]] <- interp_lms[sex == s, list(
-      age = rep(age, times = length(cutoffs)),
-      sex = rep(sex, times = length(cutoffs)),
-      bmi_l = rep(bmi_l, times = length(cutoffs)),
-      bmi_m = rep(bmi_m, times = length(cutoffs)),
-      bmi_s = rep(bmi_s, times = length(cutoffs)),
-      z = cts[sex == s, list(z = rep(z, each = nrow(interp_lms[sex == s, ])))][, z],
-      status = rep(groups, each = nrow(interp_lms[sex == s, ])))
-    ]
+        age = rep(age, times = length(cutoffs)),
+        sex = rep(sex, times = length(cutoffs)),
+        bmi_l = rep(bmi_l, times = length(cutoffs)),
+        bmi_m = rep(bmi_m, times = length(cutoffs)),
+        bmi_s = rep(bmi_s, times = length(cutoffs)),
+        z = cts[sex == s, rep(z, each = interp_lms[sex == s, .N])],
+        status = rep(groups, each = interp_lms[sex == s, .N]))]
   }
 
   # Collect sex specific data
-  res <- rbind(tmp[[interp_lms[, levels(sex)][1]]], tmp[[interp_lms[, levels(sex)][1]]])
+  res <- rbindlist(tmp)
 
   # Convert status to factor
   res[, status := factor(status, levels = groups)]
@@ -1550,10 +1550,10 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
     bmi_sds <- mean_var <- mu_bmi <- sd_var <- subject_id <- type <- var_bmi <- NULL
 
     # Get the BMI-SDS variability for each groups
-    varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = .(subject_id, type)]
+    varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = list(subject_id, type)]
 
     # Collect the mean and standard deviation of the variabiliy
-    varpars <- varsubj[, list(mean_var = mean(sd), sd_var = sd(sd)), by = .(type)]
+    varpars <- varsubj[, list(mean_var = mean(sd), sd_var = sd(sd)), by = list(type)]
 
     # Define a normal distribution representing the overall population with the empirical variability
     # of each subpopulation
@@ -1574,7 +1574,7 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 
     # Sample of 1000 subjects
     sampl <- bmi_pop[subject_id %in% c(subs_ob_subj, subs_ctrl_subj), .SD]
-    agg <- sampl[, .(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
+    agg <- sampl[, list(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
 
     return(list(sample = sampl, aggregated = agg))
 }
