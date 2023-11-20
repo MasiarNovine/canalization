@@ -234,7 +234,9 @@ CQV <- function(x) {
 #' Kromeyer-Hauschild, K. et al. (Aug. 2001). “Perzentile für den Body-mass-Index für das Kindes- und Jugendalter unter Heranziehung verschiedener deutscher Stichproben”. In: Monatsschrift Kinderheilkunde 149.8, pp. 807–818. issn: 1433-0474. url: https://doi.org/10.1007/s001120170107.
 #' }
 
-load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), na_omit=FALSE) {
+load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                           na_omit = FALSE
+) {
   ref <- NULL
   age <- sex <- weight_l <- weight_m <- weight_s <- height_l <- height_m <- height_s <- bmi_l <- bmi_m <- bmi_s <- NULL
   if (ref_name == "WHO") {
@@ -946,7 +948,7 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
       all = TRUE, by = c("sex", "age")
     )
     if (na_omit) {
-      ref <- na.omit(ref)
+      ref <- na_omit(ref)
     }
   } else {
     stop("Unknown reference name")
@@ -956,7 +958,7 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
 
 #' \name{interpolate_reference}
 #' \alias{interpolate_reference}
-#' \usage{interpolate_reference(ref_name, age_range_years, age_step)}
+#' \usage{interpolate_reference(ref_name, years, step)}
 #' \title{Interpolate reference values}
 #' \description{Takes a reference dataset and interpolates it to a given age range.}
 #' \details{
@@ -966,14 +968,15 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"), n
 #' \arguments{
 #'   \item{ref_name}{A string specifying the reference to be interpolated.
 #' Possible values are "WHO", "KiGGS" and "Kromeyer". Default: "WHO".}
-#'   \item{age_range_years}{Age range to be interpolated. Default: c(0, 18)}
-#'   \item{age_step}{Age step to be used for interpolation. Default: 0.01}
+#'   \item{years}{Age range to be interpolated. Default: c(0, 18)}
+#'   \item{step}{Age step to be used for interpolation. Default: 0.01}
 #' }
 #' \value{ Interpolated reference dataset. }
 
 interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-                                  age_range_years = c(0, 18),
-                                  age_step = 0.01) {
+                                  years = c(0, 18),
+                                  step = 0.01
+) {
   sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- NULL
 
   # Check, whether the reference is given
@@ -988,56 +991,56 @@ interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild
   if (max(ref[, age]) > 20) ref[, age := age / 12]
 
   # Set age range to be used for interpolation
-  age_interpl <- seq(min(age_range_years), max(age_range_years), abs(age_step))
+  age_interp <- seq(min(years), max(years), abs(step))
 
   # Create vector of sexes to be interpolated
   slvl <- c("female", "male")
 
   # Allocate LMS parameters to be interpolated
-  interpl_lms <- data.table(
-    sex = factor(rep(slvl, each = length(age_interpl)), levels = slvl),
-    age = rep(age_interpl, 2),
+  interp_lms <- data.table(
+    sex = factor(rep(slvl, each = length(age_interp)), levels = slvl),
+    age = rep(age_interp, 2),
     height_l = -1000, height_m = -1000, height_s = -1000,
     weight_l = -1000, weight_m = -1000, weight_s = -1000,
     bmi_l = -1000, bmi_m = -1000, bmi_s = -1000
   )
 
   # Linearly interpolate LMS parameters
-  for (s in interpl_lms[, levels(sex)]) {
-    interpl_lms[sex == s, height_l := approx(x=ref[sex == s, age], y=ref[sex == s, height_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, height_m := approx(x=ref[sex == s, age], y=ref[sex == s, height_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, height_s := approx(x=ref[sex == s, age], y=ref[sex == s, height_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_l := approx(x=ref[sex == s, age], y=ref[sex == s, weight_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_m := approx(x=ref[sex == s, age], y=ref[sex == s, weight_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, weight_s := approx(x=ref[sex == s, age], y=ref[sex == s, weight_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_l := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_l], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_m := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_m], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
-    interpl_lms[sex == s, bmi_s := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_s], xout=interpl_lms[sex == s, age], na.rm=TRUE)$y]
+  for (s in interp_lms[, levels(sex)]) {
+    interp_lms[sex == s, height_l := approx(x=ref[sex == s, age], y=ref[sex == s, height_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, height_m := approx(x=ref[sex == s, age], y=ref[sex == s, height_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, height_s := approx(x=ref[sex == s, age], y=ref[sex == s, height_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, weight_l := approx(x=ref[sex == s, age], y=ref[sex == s, weight_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, weight_m := approx(x=ref[sex == s, age], y=ref[sex == s, weight_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, weight_s := approx(x=ref[sex == s, age], y=ref[sex == s, weight_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, bmi_l := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, bmi_m := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
+    interp_lms[sex == s, bmi_s := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
   }
 
   # Round ages to 2 digits to avoid rounding errors
-  interpl_lms[, age := round(age, 2)]
+  interp_lms[, age := round(age, 2)]
 
-  return(interpl_lms)
+  return(interp_lms)
 }
 
 #' \name{interpolate_cutoffs}
 #' \alias{interpolate_cutoffs}
-#' \usage{interpolate_cutoffs(ref_name, cutoffs, group_names, age_range_years, age_step)}
+#' \usage{interpolate_cutoffs(ref_name, cutoffs, groups, years, step)}
 #' \title{Interpolation of percentile BMI cutoffs}
 #' \description{Interpolate percentile BMI cutoffs for a given reference.}
 #' \details{
 #'  The function linearly interpolates percentile cutoffs for a given reference based on the
 #'  International Obesity Task Force (IOTF) cutoffs. The reference is interpolated to the age range
-#'  defined by `age_range_years` and `age_step`. The function returns a `data.table` with the
+#'  defined by `years` and `step`. The function returns a `data.table` with the
 #'  percentile cutoffs.
 #' }
 #' \arguments{
 #'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
 #'   \item{cutoffs}{Cutoffs.}
-#'   \item{group_names}{Names of the weight groups.}
-#'   \item{age_range_years}{Age range in years.}
-#'   \item{age_step}{Age step.}
+#'   \item{groups}{Names of the weight groups.}
+#'   \item{years}{Age range in years.}
+#'   \item{step}{Age step.}
 #' }
 #' \value{`data.table` of percentile cutoffs.}
 #' \references{
@@ -1048,9 +1051,9 @@ interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild
 
 interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
                                 cutoffs = c(18.5, 25.0, 30.0),
-                                group_names = c("underweight", "overweight", "obese"),
-                                age_range_years = c(0, 18),
-                                age_step = 0.01
+                                groups = c("underweight", "overweight", "obese"),
+                                years = c(0, 18),
+                                step = 0.01
 ) {
   sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- z <- bmi_centile <- status <- NULL
 
@@ -1058,26 +1061,26 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
   ref_name <- match.arg(ref_name)
 
   # Interpolated LMS parameter table
-  interpl_lms <- interpolate_reference(
-    ref_name = ref_name, age_range_years = age_range_years, age_step = age_step)[, list(sex, age, bmi_l, bmi_m, bmi_s)]
+  interp_lms <- interpolate_reference(
+    ref_name = ref_name, years = years, step = step)[, list(sex, age, bmi_l, bmi_m, bmi_s)]
 
   # Calculate interpolated percentile cutoffs based on cutoffs at age 18
-  prms <- interpl_lms[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
+  prms <- interp_lms[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
   cts <- prms[, list(z = transform_to_zscore(cutoffs, l = bmi_l, m = bmi_m, s = bmi_s)), by = sex]
 
   # Repeat the interpolated parameters as many times as cutoffs
   # for each sex
-  tmp <- vector("list", length = length(interpl_lms[, levels(sex)]))
+  tmp <- vector("list", length = length(interp_lms[, levels(sex)]))
 
-  for (s in interpl_lms[, levels(sex)]) {
-    tmp[[s]] <- interpl_lms[sex == s, list(
+  for (s in interp_lms[, levels(sex)]) {
+    tmp[[s]] <- interp_lms[sex == s, list(
       age = rep(age, times = length(cutoffs)),
       sex = rep(sex, times = length(cutoffs)),
       bmi_l = rep(bmi_l, times = length(cutoffs)),
       bmi_m = rep(bmi_m, times = length(cutoffs)),
       bmi_s = rep(bmi_s, times = length(cutoffs)),
-      z = cts[sex == s, list(z = rep(z, each = nrow(interpl_lms[sex == s, ])))][, z],
-      status = rep(group_names, each = nrow(interpl_lms[sex == s, ])))
+      z = cts[sex == s, list(z = rep(z, each = nrow(interp_lms[sex == s, ])))][, z],
+      status = rep(groups, each = nrow(interp_lms[sex == s, ])))
     ]
   }
 
@@ -1085,7 +1088,7 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
   res <- rbind(tmp[["female"]], tmp[["male"]])
 
   # Convert status to factor
-  res[, status := factor(status, levels = group_names)]
+  res[, status := factor(status, levels = groups)]
 
   # Transform to bmi centiles
   res <- res[, bmi_centile := transform_to_centile(z, bmi_l, bmi_m, bmi_s)]
@@ -1093,8 +1096,8 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
   return(res)
 }
 
-#' \name{adiposity_status_by_bmi}
-#' \alias{adiposity_status_by_bmi}
+#' \name{adiposity_status_bmi}
+#' \alias{adiposity_status_bmi}
 #' \title{Weight status assignment}
 #' \description{Assigns a weight status for each observation in the data.}
 #' \details{
@@ -1106,29 +1109,30 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
 #' \arguments{
 #'   \item{cresc_data}{A data.table containing CrescNet data.}
 #'   \item{ref_name}{Reference name. Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
-#'   \item{cutoff_bounds}{A named list with BMI cutoffs given as a 2-element vector. Default: list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA))}
-#'   \item{age_range_years}{Age range in years. Default: c(0, 18)}
-#'   \item{age_step}{Age step. Default: 0.01}
+#'   \item{bounds}{A named list with BMI cutoffs given as a 2-element vector. Default: list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA))}
+#'   \item{years}{Age range in years. Default: c(0, 18)}
+#'   \item{step}{Age step. Default: 0.01}
 #' }
 #' \value{A data.table containing an extra column with the assigned weight status for each observation.}
 
-adiposity_status_by_bmi <- function(cresc_data,
-                                    ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-                                    cutoff_bounds = list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA)),
-                                    age_range_years = c(0, 18),
-                                    age_step = 0.01
+# TODO: Put this function and the other one for BMI-SDS together
+adiposity_status_bmi <- function(cresc_data,
+                               ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                               bounds = list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA)),
+                               years = c(0, 18),
+                               step = 0.01
 ) {
   bmi <- sex <- tmp_id <- age <- status <- bmi_centile <- idxlow <- idxup <- cutlow <- cutup <- st <- s <- NULL
 
   # Collapse the cutoffs to a vector
-  cutoffs <- unlist(cutoff_bounds)
+  cutoffs <- unlist(bounds)
 
   # Interpolation reference cutoffs
   cuttab <- interpolate_cutoffs(ref_name = ref_name,
                                 cutoffs = cutoffs,
-                                group_names = names(cutoffs),
-                                age_range_years = age_range_years,
-                                age_step = age_step)[, list(age, sex, status, bmi_centile)]
+                                groups = names(cutoffs),
+                                years = years,
+                                step = step)[, list(age, sex, status, bmi_centile)]
 
   # Temporary id column
   cuttab[, tmp_id := seq(1, .N, 1)]
@@ -1144,7 +1148,7 @@ adiposity_status_by_bmi <- function(cresc_data,
               male = cresc_data[sex == "male", ])
 
   # Go trough all adiposity status
-  for (st in names(cutoff_bounds)) {
+  for (st in names(bounds)) {
     for (s in c("female", "male")) {
 
       # Get the lower and upper bound
@@ -1171,9 +1175,9 @@ adiposity_status_by_bmi <- function(cresc_data,
   return(res[, tmp_id := NULL])
 }
 
-#' \name{adiposity_status_by_bmi_sds}
-#' \alias{adiposity_status_by_bmi_sds}
-#' \usage{adiposity_status_by_bmi_sds(cresc, cutoffs)}
+#' \name{adiposity_status_bmi_sds}
+#' \alias{adiposity_status_bmi_sds}
+#' \usage{adiposity_status_bmi_sds(cresc_data, cutoffs)}
 #' \title{Weight status assignment}
 #' \description{Assigns a weight status for each observation in the data.}
 #' \details{
@@ -1186,17 +1190,17 @@ adiposity_status_by_bmi <- function(cresc_data,
 #' the two other entries are not. If not given, the default assumes inclusive bounds.
 #' }
 #' \arguments{
-#'   \item{cresc}{A data.table containing CrescNet data.}
+#'   \item{cresc_data}{A data.table containing CrescNet data.}
 #'   \item{cutoffs}{BMI cutoffs used.}
 #' }
 #' \value{A data.table containing an extra column with the assigned weight status for each observation.}
 
-adiposity_status_by_bmi_sds <- function(cresc,
-                                        cutoffs = list(
-                                          underweight = list(lower=NA, upper=qnorm(0.05), inclower=TRUE, incupper=FALSE),
-                                          normal = list(lower=qnorm(0.05), upper=qnorm(0.85), inclower=TRUE, incupper=FALSE),
-                                          overweight = list(lower=qnorm(0.85), upper=qnorm(0.95), inclower=TRUE, incupper=FALSE),
-                                          obese = list(lower=qnorm(0.95), upper=NA, inclower=TRUE, incupper=FALSE))
+adiposity_status_bmi_sds <- function(cresc_data,
+                                     cutoffs = list(
+                                       underweight = list(lower=NA, upper=qnorm(0.05), inclower=TRUE, incupper=FALSE),
+                                       normal = list(lower=qnorm(0.05), upper=qnorm(0.85), inclower=TRUE, incupper=FALSE),
+                                       overweight = list(lower=qnorm(0.85), upper=qnorm(0.95), inclower=TRUE, incupper=FALSE),
+                                       obese = list(lower=qnorm(0.95), upper=NA, inclower=TRUE, incupper=FALSE))
 ) {
     if (class(cutoffs) != "list") {
       stop("Argument 'cutoffs' must be a list.")
@@ -1207,7 +1211,7 @@ adiposity_status_by_bmi_sds <- function(cresc,
     }
 
     status <- bmi_sds <- NULL
-    cresc[, status := ""]
+    cresc_data[, status := ""]
     nms <- names(cutoffs)
 
     # Find & assign end status
@@ -1229,16 +1233,16 @@ adiposity_status_by_bmi_sds <- function(cresc,
         incupper <- cutoffs[[nm]]$incupper
 
         if (inclower & incupper) {
-          cresc[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
+          cresc_data[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
         } else if (inclower & !incupper) {
-            cresc[`>=`(bmi_sds, lower) & `<`(bmi_sds, upper), status := nm]
+            cresc_data[`>=`(bmi_sds, lower) & `<`(bmi_sds, upper), status := nm]
         } else if (!inclower & incupper) {
-            cresc[`>`(bmi_sds, lower) & `<=`(bmi_sds, upper), status := nm]
-        } else cresc[between(bmi_sds, lower, upper, incbounds = FALSE), status := nm]
-      } else cresc[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
+            cresc_data[`>`(bmi_sds, lower) & `<=`(bmi_sds, upper), status := nm]
+        } else cresc_data[between(bmi_sds, lower, upper, incbounds = FALSE), status := nm]
+      } else cresc_data[between(bmi_sds, lower, upper, incbounds = TRUE), status := nm]
     }
 
-    return(cresc[, status := factor(status, levels = nms)])
+    return(cresc_data[, status := factor(status, levels = nms)])
 }
 
 #' \name{assign_median_bmi}
@@ -1264,19 +1268,19 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
   ref_name <- match.arg(ref_name)
 
   # Interpolate reference
-  interpl_lms <- interpolate_reference(ref_name)
+  interp_lms <- interpolate_reference(ref_name)
 
   # Allocate BMI to be interpolated
   cresc_data[, bmi_m := -1000];
 
   # Map the age the interpolated LMS parameters
-  ref_indices_female <- interpl_lms[, which(sex == "female")] - 1
-  ref_indices_male <- interpl_lms[, which(sex == "male")] - 1
+  ref_indices_female <- interp_lms[, which(sex == "female")] - 1
+  ref_indices_male <- interp_lms[, which(sex == "male")] - 1
 
   bmimed <- assignMedianBmiCpp(
     cresc_data[, bmi], cresc_data[, age],
-    cresc_data[, sex], interpl_lms[, age],
-    interpl_lms[, bmi_m], ref_indices_female,
+    cresc_data[, sex], interp_lms[, age],
+    interp_lms[, bmi_m], ref_indices_female,
     ref_indices_male
   )
 
@@ -1287,8 +1291,8 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
 
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
-#' \usage{prepare_dataset(obesity_file, control_file, ref_name, n_train,
-#' center_age, age_in_days, encode_sex, short_ids, first_as_variables, seed)}
+#' \usage{prepare_dataset(file_obese, file_control, ref_name, n_train,
+#' center_age, use_days, encode_sex, use_short_ids, include_baseline, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
@@ -1302,38 +1306,50 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
 #'
 #' }
 #' \arguments{
-#'   \item{obesity_file}{CrescNet file path for obese labeled subjects.}
-#'   \item{control_file}{CrescNet file path for control labeled subjects.}
+#'   \item{file_obese}{CrescNet file path for obese labeled subjects.}
+#'   \item{file_control}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
-#'   \item{age_in_days}{Age given in days, instead of years? Default: FALSE}
+#'   \item{use_days}{Age given in days, instead of years? Default: FALSE}
 #'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
-#'   \item{short_ids}{Shorter subject IDs? Default: TRUE}
-#'   \item{first_as_variables}{First measurements as separate variables? Default: TRUE}
+#'   \item{use_short_ids}{Shorter subject IDs? Default: TRUE}
+#'   \item{include_baseline}{First measurements as separate variables? Default: TRUE}
 #'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
 
-prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
-  n_train = 100, center_age = FALSE, age_in_days = FALSE, encode_sex = FALSE,
-  short_ids = TRUE, first_as_variables = TRUE, seed = 1
+prepare_dataset <- function(file_obese,
+                            file_control,
+                            ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                            n_train = 100,
+                            center_age = FALSE,
+                            use_days = FALSE,
+                            encode_sex = FALSE,
+                            use_short_ids = TRUE,
+                            include_baseline = TRUE,
+                            seed = 1
 ) {
   # Define variables
+  # Fix issues with R CMD check by defining each variable used in the data.table locally
   new_id <- N <- bmi_sds_alt <- weight_sds_alt <- height_sds_alt <- NULL
+  subject_id <- age <- type <- sex <- age_group <- measurement_id <- dupl_age <- NULL
+  height <- height_l <- height_m <- height_s <- NULL
+  weight <- weight_l <- weight_m <- weight_s <- NULL
+  bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
 
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
 
   # Loading CrescNet data & pool data sets
-  at_risk <- data.table::fread(obesity_file, header=TRUE)[, type := "obese*"]
-  control <- data.table::fread(control_file, header=TRUE)[, type := "control*"]
-  cresc_data <- rbind(at_risk, control)
+  obese <- data.table::fread(file_obese, header=TRUE)[, type := "obese*"]
+  control <- data.table::fread(file_control, header=TRUE)[, type := "control*"]
+  cresc_data <- rbind(obese, control)
 
   # Interpolate reference
-  interpl_lms <- interpolate_reference(ref_name)
+  interp_lms <- interpolate_reference(ref_name)
 
   # Allocate BMI to be interpolated
   cresc_data[, bmi_sds_alt := -1000];
@@ -1341,24 +1357,24 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
   cresc_data[, weight_sds_alt := -1000];
 
   # Map the age the interpolated LMS parameters
-  ref_indices_female <- interpl_lms[, which(sex == "female")] - 1
-  ref_indices_male <- interpl_lms[, which(sex == "male")] - 1
+  ref_indices_female <- interp_lms[, which(sex == "female")] - 1
+  ref_indices_male <- interp_lms[, which(sex == "male")] - 1
 
   height_sds_new <- calculateZscoresCpp(
     cresc_data[, height], cresc_data[, age], cresc_data[, sex],
-    interpl_lms[, age], interpl_lms[, height_l], interpl_lms[, height_m], interpl_lms[, height_s],
+    interp_lms[, age], interp_lms[, height_l], interp_lms[, height_m], interp_lms[, height_s],
     ref_indices_female, ref_indices_male
   )
 
   weight_sds_new <- calculateZscoresCpp(
     cresc_data[, weight], cresc_data[, age], cresc_data[, sex],
-    interpl_lms[, age], interpl_lms[, weight_l], interpl_lms[, weight_m], interpl_lms[, weight_s],
+    interp_lms[, age], interp_lms[, weight_l], interp_lms[, weight_m], interp_lms[, weight_s],
     ref_indices_female, ref_indices_male
   )
 
   bmi_sds_new <- calculateZscoresCpp(
     cresc_data[, bmi], cresc_data[, age], cresc_data[, sex],
-    interpl_lms[, age], interpl_lms[, bmi_l], interpl_lms[, bmi_m], interpl_lms[, bmi_s],
+    interp_lms[, age], interp_lms[, bmi_l], interp_lms[, bmi_m], interp_lms[, bmi_s],
     ref_indices_female, ref_indices_male
   )
 
@@ -1399,17 +1415,11 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
   # cresc_data[, bmi_sds_new := bmi_sds_new]
 
   # Set shorter ids
-  if (short_ids) {
+  if (use_short_ids) {
     tmp <- cresc_data[, .N, by=subject_id]
     tmp[, new_id := mcgraph::mcg.autonames("ID_", length(cresc_data[, unique(subject_id)]))]
     cresc_data[, subject_id := tmp[, rep(new_id, N)]]
   }
-
-  # Fix issues with R CMD check by defining each variable used in the data.table locally
-  subject_id <- age <- type <- sex <- age_group <- measurement_id <- dupl_age <- NULL
-  height <- height_l <- height_m <- height_s <- NULL
-  weight <- weight_l <- weight_m <- weight_s <- NULL
-  bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
 
   # Introduce factors
   cresc_data[, sex := factor(sex, levels = c("female", "male"))]
@@ -1426,7 +1436,7 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
     cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
   }
 
-  if (first_as_variables) {
+  if (include_baseline) {
     # Get response at baseline, i.e. first measurement at approx age 0.5 years
     # Note: use list instead of . to avoid NOTE when R CMD check
     start <- cresc_data[age_group == "start", list(subject_id, age, weight, height, bmi)]
@@ -1451,7 +1461,7 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
   cresc_data[, measurement_id := seq(1, length(weight), 1), by = subject_id]
 
   # Get age in days
-  if (age_in_days) {
+  if (use_days) {
     cresc_data <- cresc_data[, age := floor(age * 365.25)]
   }
 
@@ -1461,10 +1471,10 @@ prepare_dataset <- function(obesity_file, control_file, ref_name=c("WHO", "KiGGS
   ids <- cresc_data[, unique(subject_id)][rndidx]
 
   # Split into test and training set for internal validation
-  cresc_train <- cresc_data[subject_id %in% ids, ]
-  cresc_test <- cresc_data[!(subject_id %in% ids), ]
+  crescData_train <- cresc_data[subject_id %in% ids, ]
+  cresc_data_test <- cresc_data[!(subject_id %in% ids), ]
 
-  return(list(train = cresc_train, test = cresc_test))
+  return(list(train = crescData_train, test = cresc_data_test))
 }
 
 #' \name{create_age_cohorts}
@@ -1536,7 +1546,7 @@ create_age_cohorts <- function(cresc_data, age_range) {
 #'   \item{age_range:}{A 2 x n `matrix` with age boundaries.}
 #' }
 #' \value{
-#'   A `list` with as much entries as age cohorts.
+#'   A `list` with as much entries as age cresc_data.
 #' }
 
 run_simulation <- function(cresc_data, n=1000, n_samples=10) {
@@ -1601,31 +1611,33 @@ run_simulation <- function(cresc_data, n=1000, n_samples=10) {
 #' \value{Series of `ggplot` plots.}
 
 check_model <- function(model, cresc_data, seed = 1) {
-  fitted <- resid <- subject_id <- rndidx <- age <- weight <- NULL
+  tmp <- copy(cresc_data)
+  bmi <- fitted <- resid <- subject_id <- rndidx <- age <- weight <- NULL
 
   # Define plotting settings
   blue <- "#5499C7"
-  t <- theme_bw(base_size = 12, base_family = "Fira Sans") %+replace%
-  theme(plot.title = element_text(hjust = 0.5))
+  # t <- theme_bw(base_size = 12, base_family = "Fira Sans") %+replace%
+  # theme(plot.title = element_text(hjust = 0.5))
+  t <- theme_elegant()
 
   # Update initial data table
   if (class(model) == "brmsfit") {
     # The resid is simply the difference between the raw value and the fitted estimate
     fi <- fitted(model)
-    cresc_data[, resid := model$data[, 1] - fi[, 1]]
-    cresc_data[, fitted := fi[, 1]]
+    tmp[, resid := model$data[, 1] - fi[, 1]]
+    tmp[, fitted := fi[, 1]]
   } else {
-    cresc_data[, resid := resid(model)]
-    cresc_data[, fitted := fitted(model)]
+    tmp[, resid := resid(model)]
+    tmp[, fitted := fitted(model)]
   }
 
   set.seed(seed)
-  min_size <- if (length(cresc_data[, unique(subject_id)]) < 20) length(cresc_data[, unique(subject_id)]) else 20
-  rndidx <- sample(cresc_data[, unique(subject_id)], size = min_size)
+  min_size <- if (length(tmp[, unique(subject_id)]) < 20) length(tmp[, unique(subject_id)]) else 20
+  rndidx <- sample(tmp[, unique(subject_id)], size = min_size)
 
   # ASSUMPTION 1: CONSTANT VARIANCE
   # Check, whether the expection is 0 and the variability is constant
-  p1 <- ggplot(cresc_data[subject_id %in% rndidx, ], aes(subject_id, resid)) +
+  p1 <- ggplot(tmp[subject_id %in% rndidx, ], aes(subject_id, resid)) +
     geom_boxplot() +
     coord_flip() +
     geom_abline(slope = 0, intercept = 0, colour = "red") +
@@ -1634,7 +1646,7 @@ check_model <- function(model, cresc_data, seed = 1) {
 
   # ASSUMPTION 2: RANDOM DISTRIBUTION OF RESIDUALS AROUND MEAN OF 0 AND STANDARD DEVIATION OF 1
   # Check the residuals by subject
-  p2 <- ggplot(cresc_data[subject_id %in% rndidx, ], aes(x = fitted, y = resid, group = subject_id)) +
+  p2 <- ggplot(tmp[subject_id %in% rndidx, ], aes(x = fitted, y = resid, group = subject_id)) +
     geom_point(colour = blue) +
     geom_line(colour = blue) +
     facet_wrap(~ subject_id) +
@@ -1643,7 +1655,7 @@ check_model <- function(model, cresc_data, seed = 1) {
 
   # DIAGNOSTICS PLOT: GOODNESS OF FIT FOR RAW RESPONSE VALUES
   # Fitted line against raw values
-  p3 <- ggplot(cresc_data[subject_id %in% rndidx, ], aes(x = age, log(weight))) +
+  p3 <- ggplot(tmp[subject_id %in% rndidx, ], aes(x = age, bmi)) +
     geom_point() +
     geom_line(mapping = aes(x = age, y = fitted), colour = blue) +
     facet_wrap(~ subject_id) +
@@ -1653,11 +1665,11 @@ check_model <- function(model, cresc_data, seed = 1) {
   if (class(model) != "brmsfit") {
     # DIAGNOSTICS PLOT: NO TREND IN WITHIN-SUBJECT CORRELATIONS
     # Variogram for checking the correlations
-    p4 <- ggVario(Variogram(model, resType = "n"))
+    p4 <- ggvario(Variogram(model, resType = "n"))
   }
 
   # DIAGNOSTICS PLOT: FITTED VS RESIDUALS
-  p5 <- ggplot(cresc_data, aes(x = fitted, y = resid)) +
+  p5 <- ggplot(tmp, aes(x = fitted, y = resid)) +
     geom_point(colour = blue) +
     labs(title = expression(bold("Fitted vs response")), x = "Fitted", y = "Standardized residuals") +
     t
@@ -1696,16 +1708,16 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
   blue <- "#5499C7"
   set.seed(seed)
 
-  cresc_test <- cresc_data$test[
+  cresc_data_test <- cresc_data$test[
     subject_id %in% sample(cresc_data$test[, unique(subject_id)], size = 20),
   ]
 
-  cresc_test[, predicted := predict(model, cresc_test)]
+  cresc_data_test[, predicted := predict(model, cresc_data_test)]
 
   g <- if (log) {
-    ggplot(cresc_test, aes(x = age, log(weight)))
+    ggplot(cresc_data_test, aes(x = age, log(weight)))
   } else {
-    ggplot(cresc_test, aes(x = age, weight))
+    ggplot(cresc_data_test, aes(x = age, weight))
   }
 
   g <- g +
@@ -1717,14 +1729,14 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
 
   print(g)
 
-  return(cresc_test)
+  return(cresc_data_test)
 }
 
-#' \name{ggVario}
-#' \alias{ggVario}
+#' \name{ggvario}
+#' \alias{ggvario}
 #' \title{Plot a variogram}
 #' \description{Uses ggplot to plot a variogram}
-#' \usage{ggVario(v)}
+#' \usage{ggvario(v)}
 #' \arguments{
 #'   \item{v}{A data.frame object with columns `dist` and `variog`.}
 #' }
@@ -1734,7 +1746,7 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
 #' }
 #' \value{A `ggplot` object.}
 
-ggVario <- function(v) {
+ggvario <- function(v) {
   variog <- type <- NULL
 
   g <- ggplot(v, aes(x = dist, y = variog))
@@ -1753,14 +1765,27 @@ ggVario <- function(v) {
 #' \title{Custom ggplot theme}
 #' \description{A customized ggplot theme}
 #' \usage{
-#'  theme_elegant(base_size, base_family, legend.title, legend.position,plot.background, strip.text, strip.text.y)
+#' theme_elegant(base_size, base_family, axis.line, axis.line.x, axis.line.y,
+#' legend.title, legend.position, legend.direction, legend.justification,
+#' legend.box, panel.background, panel.border, panel.grid, plot.background, strip.background,
+#' strip.text, strip.text.y)
 #' }
 #' \arguments{
 #'   \item{base_size}{The base font size.}
 #'   \item{base_family}{The base font family.}
+#'   \item{axis.line}{The line of the axis.}
+#'   \item{axis.line.x}{The line of the axis in x direction.}
+#'   \item{axis.line.y}{The line of the axis in y direction.}
 #'   \item{legend.title}{The title of the legend.}
 #'   \item{legend.position}{The position of the legend.}
+#'   \item{legend.direction}{The direction of the legend.}
+#'   \item{legend.justification}{The justification of the legend.}
+#'   \item{legend.box}{The box of the legend.}
+#'   \item{panel.background}{The background of the panel.}
+#'   \item{panel.border}{The border of the panel.}
+#'   \item{panel.grid}{The grid of the panel.}
 #'   \item{plot.background}{The background of the plot.}
+#'   \item{strip.background}{The background of the strip.}
 #'   \item{strip.text}{The text of the strip.}
 #'   \item{strip.text.y}{The text of the strip in y direction.}
 #' }
@@ -1771,27 +1796,41 @@ ggVario <- function(v) {
 
 theme_elegant <- function(base_size = 11,
                           base_family ="Fira Sans",
+                          axis.line = element_blank(),#element_line(colour = "black", linewidth = 0.25),
+                          axis.line.x = NULL,#element_line(colour = "black", linewidth = 0.25),
+                          axis.line.y = NULL,#element_line(colour = "black", linewidth = 0.25),
                           legend.title = element_blank(),
                           legend.position = "bottom",
-                          plot.background = element_rect(fill = "white", colour = "white"),
+                          legend.direction = "horizontal",
+                          legend.justification = "center",
+                          legend.box = "horizontal",
+                          panel.background = element_blank(),#element_rect(fill = NA, colour = NA),
+                          panel.border = element_rect(fill = NA, colour = "black", linewidth = 0.75),
+                          panel.grid = element_line(colour = "grey92", linewidth = 0.25, linetype = "solid"),
+                          plot.background = element_blank(),#element_rect(fill = "white", colour = "white"),
+                          strip.background = element_rect(fill = "white", colour = "white"),
                           strip.text = element_text(face ="plain",
                                                     size = rel(0.8),
-                                                    hjust = 0.1,
+                                                    hjust = 0.5,
                                                     margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm")),
                           strip.text.y = element_text(angle = 0,
                                                       margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm"))
 ) {
     theme_bw(base_size = base_size, base_family = base_family) %+replace%
     theme(
-        axis.line = element_line(colour = "black", linewidth = 0.25),
-        axis.line.x = NULL,
-        axis.line.y = NULL,
-        legend.position =legend.position,
+        axis.line = axis.line,
+        axis.line.x = axis.line.x,
+        axis.line.y = axis.line.y,
+        legend.position = legend.position,
+        legend.direction = legend.direction,
+        legend.justification = legend.justification,
         legend.title = legend.title,
-        panel.border = element_rect(fill = NA, colour = "white"),
-        panel.grid = element_line(colour = "white"),
+        legend.box = legend.box,
+        panel.background = panel.background,
+        panel.border = panel.border,
+        panel.grid = panel.grid,
         plot.background = plot.background,
-        strip.background = element_rect(fill = "white", colour = "white"),
+        strip.background = strip.background,
         strip.placement ="outside",
         strip.text = strip.text,
         strip.text.y = strip.text.y,
@@ -2069,7 +2108,7 @@ getUniqueIdsCpp <- function(...) {
 ###  place startup loads here
 .onLoad <- function(libname, pkgname) {
   # to show a startup message
-  # example on how to initialize a Tcl package
+  # example on how to initialize_data a Tcl package
   # tcltk::.Tcl(paste("lappend auto_path",file.path(system.file(package="Rpkg"),"pantcl", "lib")))
   # tcltk::.Tcl("package require tclfilters")
   # tools::vignetteEngine("pantcl",package=pkgname,weave=pantcl,tangle=ptangle)
