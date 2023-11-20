@@ -994,7 +994,7 @@ interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild
   age_interp <- seq(min(years), max(years), abs(step))
 
   # Create vector of sexes to be interpolated
-  slvl <- c("female", "male")
+  slvl <- ref[, levels(sex)]
 
   # Allocate LMS parameters to be interpolated
   interp_lms <- data.table(
