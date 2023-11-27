@@ -8,3 +8,10 @@
 
 * Corrected interpolation function to return correct indices
 * Refactor C++ code
+
+## Version 0.3.6
+
+* Included reference files as RData files in inst/extdata
+* Refactor load_reference
+* Included function for simulating study groups
+* Finished interpolation of cutoffs and references
