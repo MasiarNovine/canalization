@@ -4,15 +4,16 @@
 \description{Using reference tables} 
 \arguments{ 
  \item{ref_name}{Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".} 
+ \item{measure}{A vector of anthrometric measure to be used. Default: c("Weight", "Height", "BMI")} 
  \item{na_omit}{Should NAs be omitted? Logical. Default: FALSE.} 
 } 
 \details{ 
 The World Health Organization (WHO) provides an international composite reference based on 
 several national references from different countries and continents. 
 `KiGGS` is a reference based on the German nation-wide KiGGS published by the Robert-Koch Institute in Germany. 
-`Kromeyer-Hauschild` is a another German national reference. Note, that currently, for this reference values for 
-weight are used from the `KiGGS` reference. 
-the `KiGGS` reference. 
+`Kromeyer-Hauschild` is a another German national reference. Note, that currently, only WHO and KiGGS provide 
+LMS parameters for all measures, while `IOTF` denotes only LMS parameters for BMI and `Kromeyer-Hauschild` does 
+not include L and S parameters for weight. 
 } 
 \value{A reference as a `data.table` object.} 
 \references{ 

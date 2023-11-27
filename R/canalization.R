@@ -217,15 +217,16 @@ CQV <- function(x) {
 #' \description{Using reference tables}
 #' \arguments{
 #'  \item{ref_name}{Either "WHO", "KiGGS" or "Kromeyer-Hauschild". Default: "WHO".}
+#'  \item{measure}{A vector of anthrometric measure to be used. Default: c("Weight", "Height", "BMI")}
 #'  \item{na_omit}{Should NAs be omitted? Logical. Default: FALSE.}
 #' }
 #' \details{
 #' The World Health Organization (WHO) provides an international composite reference based on
 #' several national references from different countries and continents.
 #' `KiGGS` is a reference based on the German nation-wide KiGGS published by the Robert-Koch Institute in Germany.
-#' `Kromeyer-Hauschild` is a another German national reference. Note, that currently, for this reference values for
-#' weight are used from the `KiGGS` reference.
-#' the `KiGGS` reference.
+#' `Kromeyer-Hauschild` is a another German national reference. Note, that currently, only WHO and KiGGS provide
+#' LMS parameters for all measures, while `IOTF` denotes only LMS parameters for BMI and `Kromeyer-Hauschild` does
+#' not include L and S parameters for weight.
 #' }
 #' \value{A reference as a `data.table` object.}
 #' \references{
@@ -235,33 +236,46 @@ CQV <- function(x) {
 #' }
 
 load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild", "IOTF"),
-                           values = c("Weight", "Height", "BMI"),
+                           measure = c("Weight", "Height", "BMI"),
                            na_omit = FALSE
 ) {
   ref <- age <- sex <- weight_l <- weight_m <- weight_s <- height_l <- height_m <- height_s <- bmi_l <- bmi_m <- bmi_s <- NULL
-
   ref_name <- match.arg(ref_name)
-  values <- match.arg(values)
 
-  map_ref <- function(ref_name, values) {
-    filenms <- paste0("inst/extdata/", tolower(ref_name), "_", tolower(values), ".rda")
+  if (!all(measure %in% c("Weight", "Height", "BMI"))) {
+    stop ("measure must be one of 'Weight', 'Height' or 'BMI'")
+  }
+
+  # R packages should contain .rda / .RData files
+  # but these are inflexible, i.e. you have to use
+  # the exact name of the file. The function below
+  # makes sure that the right file is loaded
+  load_rda <- function(rda_file) {
+    rda_name <- str2lang(load(rda_file))
+    return(eval(rda_name))
+  }
+
+  map_ref <- function(ref_name, measure) {
+    # This retrieves the absolute path of the .rda file, which are located in inst/extdata
+    extdata <- system.file("extdata", package = getPackageName())
+    filenms <- paste0(extdata, "/", tolower(ref_name), "_", tolower(measure), ".rda")
     filenms <- filenms[file.exists(filenms)]
 
     if (length(filenms) == 0) stop("Reference not found")
-    else if (length(filenms) == 1) return(readRDS(filenms))
+    else if (length(filenms) == 1) return(load_rda(filenms))
     else {
-      ref <- readRDS(filenms[1])
-      for (fn in filenms[-1]) ref <- merge(ref, readRDS(fn), all = TRUE)
+      ref <- load_rda(filenms[1])
+      for (fn in filenms[-1]) ref <- merge(ref, load_rda(fn), all = TRUE)
     }
 
     return(ref)
   }
 
   ref <- switch(ref_name,
-    "WHO" = map_ref(ref_name, values),
-    "KiGGS" = map_ref(ref_name, values),
-    "Kromeyer-Hauschild" = map_ref(ref_name, values),
-    "IOTF" = map_ref(ref_name, values))
+    "WHO" = map_ref(ref_name, measure),
+    "KiGGS" = map_ref(ref_name, measure),
+    "Kromeyer-Hauschild" = map_ref(ref_name, measure),
+    "IOTF" = map_ref(ref_name, measure))
 
   ref <- if (na_omit) na.omit(ref) else ref
 
