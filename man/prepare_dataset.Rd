@@ -1,7 +1,7 @@
 \name{prepare_dataset} 
 \alias{prepare_dataset} 
-\usage{prepare_dataset(obesity_file, control_file, ref_name, n_train, 
-center_age, age_in_days, encode_sex, short_ids, first_as_variables, seed)} 
+\usage{prepare_dataset(file_obese, file_control, ref_name, n_train, 
+center_age, use_days, encode_sex, use_short_ids, include_baseline, seed)} 
 \title{Loading an preprocessing of the CrescNet dataset.} 
 \description{ 
 Transform the raw measurements of z-scores. 
@@ -15,15 +15,15 @@ transforming variables.
  
 } 
 \arguments{ 
-  \item{obesity_file}{CrescNet file path for obese labeled subjects.} 
-  \item{control_file}{CrescNet file path for control labeled subjects.} 
+  \item{file_obese}{CrescNet file path for obese labeled subjects.} 
+  \item{file_control}{CrescNet file path for control labeled subjects.} 
   \item{ref_name}{Which reference to use.} 
   \item{n_train}{Number of samples used for model building.} 
   \item{center_age}{Should age be centered? Default: FALSE} 
-  \item{age_in_days}{Age given in days, instead of years? Default: FALSE} 
+  \item{use_days}{Age given in days, instead of years? Default: FALSE} 
   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE} 
-  \item{short_ids}{Shorter subject IDs? Default: TRUE} 
-  \item{first_as_variables}{First measurements as separate variables? Default: TRUE} 
+  \item{use_short_ids}{Shorter subject IDs? Default: TRUE} 
+  \item{include_baseline}{First measurements as separate variables? Default: TRUE} 
   \item{seed}{Seed used for random sampling of subjects. Default: 1} 
 } 
 \value{ 
