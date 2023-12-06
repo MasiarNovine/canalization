@@ -313,11 +313,29 @@ interpolate_reference <- function(ref_name = get_reference_names(),
   age_out <- seq(min(years), max(years), abs(step))
 
   # Interpolate
-  male <- cbind(sex = "male", age = round(rep(age_out, 2), 2),
-    ref[sex == "male", lapply(.SD, .interpl, x = age, xout = age_out, interpol_method = interpol_method, spline_method = spline_method), .SDcols = patterns("_l|_m|_s")])
-  female <- cbind(sex = "female", age = round(rep(age_out, 2), 2),
-    ref[sex == "female", lapply(.SD, .interpl, x = age, xout = age_out, interpol_method = interpol_method, spline_method = spline_method), .SDcols = patterns("_l|_m|_s")])
-  ref_interpl <- rbind(male, female)
+  male <- data.table(sex = "male",
+                     age = round(age_out, 2),
+                     ref[sex == "male",
+                         lapply(.SD,
+                                .interpl,
+                                x = age,
+                                xout = age_out,
+                                interpol_method = interpol_method,
+                                spline_method = spline_method),
+                       .SDcols = patterns("_l|_m|_s")])
+
+  female <- data.table(sex = "female",
+                       age = round(age_out, 2),
+                       ref[sex == "female",
+                           lapply(.SD,
+                                 .interpl,
+                                 x = age,
+                                 xout = age_out,
+                                 interpol_method = interpol_method,
+                                 spline_method = spline_method),
+                         .SDcols = patterns("_l|_m|_s")])
+
+  ref_interpl <- rbindlist(list(male, female))
   ref_interpl <- ref_interpl[, sex := factor(sex)]
 
   return(ref_interpl)
