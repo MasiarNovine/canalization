@@ -153,13 +153,18 @@ arma::vec interpolateToZscoreCpp(const arma::vec& inputValues, const arma::vec& 
 }
 
 //[[Rcpp::export]]
-arma::vec findAgeIndicesCpp(const arma::vec& inputValues, const arma::vec& inputAges,
-                            const Rcpp::StringVector& inputSexes, const arma::vec& referenceAges,
-                            const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
+arma::vec findAgeIndicesCpp(const arma::vec& inputAges, const Rcpp::StringVector& inputSexes,
+                            const arma::vec& referenceAges, const arma::uvec& referenceFemaleIndices,
+                            const arma::uvec& referenceMaleIndices
 ) {
-    arma::vec indices(inputValues.n_elem, arma::fill::zeros);
+    arma::vec indices(inputAges.n_elem, arma::fill::zeros);
 
-    for (int i = 0; i < inputValues.n_elem; i++) {
+    if (inputAges.is_empty() || referenceAges.is_empty() ||
+        referenceFemaleIndices.is_empty() || referenceMaleIndices.is_empty()) {
+        return indices;
+    }
+
+    for (int i = 0; i < inputAges.n_elem; i++) {
         const arma::uvec& referenceIndices = (inputSexes(i) == "female") ? referenceFemaleIndices : referenceMaleIndices;
 
         if (!referenceIndices.empty()) {
@@ -184,9 +189,8 @@ arma::vec calculateZscoresCpp(const arma::vec& inputValues, const arma::vec& inp
                               const arma::vec& referenceS, const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
 ) {
     arma::vec result(inputValues.n_elem, arma::fill::zeros);
-    arma::vec indices = findAgeIndicesCpp(inputValues, inputAges,
-                                       inputSexes, referenceAges,
-                                       referenceFemaleIndices, referenceMaleIndices);
+    arma::vec indices = findAgeIndicesCpp(inputAges,inputSexes, referenceAges,
+                                          referenceFemaleIndices, referenceMaleIndices);
 
     if (!indices.is_empty()) {
         for (int i = 0; i < inputValues.n_elem; i++) {
@@ -203,8 +207,7 @@ arma::vec calculateCentilesCpp(const arma::vec& zValues, const arma::vec& inputA
                                const arma::vec& referenceS, const arma::uvec& referenceFemaleIndices, const arma::uvec& referenceMaleIndices
 ) {
     arma::vec result(zValues.n_elem, arma::fill::zeros);
-    arma::vec indices = findAgeIndicesCpp(zValues, inputAges,
-                                          inputSexes, referenceAges,
+    arma::vec indices = findAgeIndicesCpp(inputAges, inputSexes, referenceAges,
                                           referenceFemaleIndices, referenceMaleIndices);
 
     if (indices.is_empty()) {
@@ -236,8 +239,7 @@ arma::vec assignMedianBmiCpp(const arma::vec& inputValues, const arma::vec& inpu
                              const arma::uvec& referenceMaleIndices
 ) {
     arma::vec result(inputValues.n_elem, arma::fill::zeros);
-    arma::vec indices = findAgeIndicesCpp(inputValues, inputAges,
-                                          inputSexes, referenceAges,
+    arma::vec indices = findAgeIndicesCpp(inputAges, inputSexes, referenceAges,
                                           referenceFemaleIndices, referenceMaleIndices);
 
     if (!indices.is_empty()) {

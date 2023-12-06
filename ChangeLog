@@ -15,3 +15,8 @@
 * Refactor load_reference
 * Included function for simulating study groups
 * Finished interpolation of cutoffs and references
+
+## Version 0.3.7
+
+* Include tests
+* Correct interpolation

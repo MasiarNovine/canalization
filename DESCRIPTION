@@ -1,16 +1,20 @@
 Package: canalization
 Type: Package
 Title: Bayesian workflow to investigate weight volatility of German children from 2000-2022 based on data from the CrescNet network (Leipzig)
-Version: 0.3.6
+Version: 0.3.7
 Date: 2023-09-05
 Author: Masiar Novine, University of Potsdam
 Maintainer: Masiar Novine <masiar.novine@gmail.com>
 Description: R package for documenting the master's thesis at the University of Potsdam.
-Suggests: knitr, rmarkdown
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
 Depends: R (>= 3.5.0), ggplot2, data.table
-Imports: Rcpp (>= 1.0.11), mcgraph, Hmisc, nlme
+Imports: Rcpp (>= 1.0.11), mcgraph, Hmisc, nlme, methods
 LinkingTo: Rcpp, RcppArmadillo
 Encoding: UTF-8
 VignetteBuilder: knitr
 License: MIT + file LICENSE
 NeedsCompilation: no
+Config/testthat/edition: 3

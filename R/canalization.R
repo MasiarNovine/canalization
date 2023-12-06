@@ -210,6 +210,20 @@ CQV <- function(x) {
  return(100 * cqv);
 }
 
+#' \name{get_reference_names}
+#' \alias{get_reference_names}
+#' \title{List of available reference tables.}
+#' \description{List of available reference tables.}
+#' \usage{get_reference_names()}
+#' \value{`vector` of available reference tables.}
+#' \seealso{
+#' \code{\link{load_reference}}
+#' }
+
+get_reference_names <- function() {
+  return(c("WHO", "KiGGS", "Kromeyer-Hauschild", "IOTF"))
+}
+
 # TODO: Determine the L and S parameters paced on percentiles for Kromeyer-Hauschild
 #' \name{load_reference}
 #' \alias{load_reference}
@@ -235,47 +249,21 @@ CQV <- function(x) {
 #' Kromeyer-Hauschild, K. et al. (Aug. 2001). “Perzentile für den Body-mass-Index für das Kindes- und Jugendalter unter Heranziehung verschiedener deutscher Stichproben”. In: Monatsschrift Kinderheilkunde 149.8, pp. 807–818. issn: 1433-0474. url: https://doi.org/10.1007/s001120170107.
 #' }
 
-load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild", "IOTF"),
+load_reference <- function(ref_name = get_reference_names(),
                            measure = c("Weight", "Height", "BMI"),
                            na_omit = FALSE
 ) {
-  ref <- age <- sex <- weight_l <- weight_m <- weight_s <- height_l <- height_m <- height_s <- bmi_l <- bmi_m <- bmi_s <- NULL
   ref_name <- match.arg(ref_name)
 
   if (!all(measure %in% c("Weight", "Height", "BMI"))) {
     stop ("measure must be one of 'Weight', 'Height' or 'BMI'")
   }
 
-  # R packages should contain .rda / .RData files
-  # but these are inflexible, i.e. you have to use
-  # the exact name of the file. The function below
-  # makes sure that the right file is loaded
-  load_rda <- function(rda_file) {
-    rda_name <- str2lang(load(rda_file))
-    return(eval(rda_name))
-  }
-
-  map_ref <- function(ref_name, measure) {
-    # This retrieves the absolute path of the .rda file, which are located in inst/extdata
-    extdata <- system.file("extdata", package = getPackageName())
-    filenms <- paste0(extdata, "/", tolower(ref_name), "_", tolower(measure), ".rda")
-    filenms <- filenms[file.exists(filenms)]
-
-    if (length(filenms) == 0) stop("Reference not found")
-    else if (length(filenms) == 1) return(load_rda(filenms))
-    else {
-      ref <- load_rda(filenms[1])
-      for (fn in filenms[-1]) ref <- merge(ref, load_rda(fn), all = TRUE)
-    }
-
-    return(ref)
-  }
-
   ref <- switch(ref_name,
-    "WHO" = map_ref(ref_name, measure),
-    "KiGGS" = map_ref(ref_name, measure),
-    "Kromeyer-Hauschild" = map_ref(ref_name, measure),
-    "IOTF" = map_ref(ref_name, measure))
+    "WHO" = .map_ref(ref_name, measure),
+    "KiGGS" = .map_ref(ref_name, measure),
+    "Kromeyer-Hauschild" = .map_ref(ref_name, measure),
+    "IOTF" = .map_ref(ref_name, measure))
 
   ref <- if (na_omit) na.omit(ref) else ref
 
@@ -284,70 +272,55 @@ load_reference <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild", "I
 
 #' \name{interpolate_reference}
 #' \alias{interpolate_reference}
-#' \usage{interpolate_reference(ref_name, years, step)}
+#' \usage{interpolate_reference(ref_name, years, step, measure, interpol_method, spline_method)}
 #' \title{Interpolate reference values}
 #' \description{Takes a reference dataset and interpolates it to a given age range.}
 #' \details{
 #' Based on the reference dataset, the age range and the age step, the function
-#' linearly interpolates the reference values.
+#' interpolates the reference values. Either by linear or spline interpolation.
 #' }
 #' \arguments{
 #'   \item{ref_name}{A string specifying the reference to be interpolated.
 #' Possible values are "WHO", "KiGGS" and "Kromeyer". Default: "WHO".}
 #'   \item{years}{Age range to be interpolated. Default: c(0, 18)}
 #'   \item{step}{Age step to be used for interpolation. Default: 0.01}
+#'   \item{measure}{Measure to be interpolated. Either "Weight", "Height" or "BMI".}
+#'   \item{interpol_method}{Tyope of interpolation. Either "linear" or "spline".}
+#'   \item{spline_method}{Spline method. See ?spline for available methods. Default: "natural"}
 #' }
 #' \value{ Interpolated reference dataset. }
 
-interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+interpolate_reference <- function(ref_name = get_reference_names(),
                                   years = c(0, 18),
-                                  step = 0.01
+                                  step = 0.01,
+                                  measure = c("Weight", "Height", "BMI"),
+                                  interpol_method = c("linear", "spline"),
+                                  spline_method = "natural"
 ) {
-  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- NULL
-
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
+  interpol_method <- match.arg(interpol_method)
 
   # Load reference
-  ref <- load_reference(ref_name)
+  ref <- load_reference(ref_name, measure = measure)
+  col_names <- colnames(ref)
+  .allocate(col_names)
 
-  # From months to year, not good, better to change the format of the
-  # reference dataset to include units
   # TODO: Check, whether the reference is in months or years based on units
-  if (max(ref[, age]) > 20) ref[, age := age / 12]
+  ref[, age := if (max(age) > 20) age / 12]
 
   # Set age range to be used for interpolation
-  age_interp <- seq(min(years), max(years), abs(step))
+  age_out <- seq(min(years), max(years), abs(step))
 
-  # Create vector of sexes to be interpolated
-  slvl <- ref[, levels(sex)]
+  # Interpolate
+  male <- cbind(sex = "male", age = round(rep(age_out, 2), 2),
+    ref[sex == "male", lapply(.SD, .interpl, x = age, xout = age_out, interpol_method = interpol_method, spline_method = spline_method), .SDcols = patterns("_l|_m|_s")])
+  female <- cbind(sex = "female", age = round(rep(age_out, 2), 2),
+    ref[sex == "female", lapply(.SD, .interpl, x = age, xout = age_out, interpol_method = interpol_method, spline_method = spline_method), .SDcols = patterns("_l|_m|_s")])
+  ref_interpl <- rbind(male, female)
+  ref_interpl <- ref_interpl[, sex := factor(sex)]
 
-  # Allocate LMS parameters to be interpolated
-  interp_lms <- data.table(
-    sex = factor(rep(slvl, each = length(age_interp)), levels = slvl),
-    age = rep(age_interp, 2),
-    height_l = -1000, height_m = -1000, height_s = -1000,
-    weight_l = -1000, weight_m = -1000, weight_s = -1000,
-    bmi_l = -1000, bmi_m = -1000, bmi_s = -1000
-  )
-
-  # Linearly interpolate LMS parameters
-  for (s in interp_lms[, levels(sex)]) {
-    interp_lms[sex == s, height_l := approx(x=ref[sex == s, age], y=ref[sex == s, height_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, height_m := approx(x=ref[sex == s, age], y=ref[sex == s, height_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, height_s := approx(x=ref[sex == s, age], y=ref[sex == s, height_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, weight_l := approx(x=ref[sex == s, age], y=ref[sex == s, weight_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, weight_m := approx(x=ref[sex == s, age], y=ref[sex == s, weight_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, weight_s := approx(x=ref[sex == s, age], y=ref[sex == s, weight_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, bmi_l := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_l], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, bmi_m := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_m], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-    interp_lms[sex == s, bmi_s := approx(x=ref[sex == s, age], y=ref[sex == s, bmi_s], xout=interp_lms[sex == s, age], na.rm=TRUE)$y]
-  }
-
-  # Round ages to 2 digits to avoid rounding errors
-  interp_lms[, age := round(age, 2)]
-
-  return(interp_lms)
+  return(ref_interpl)
 }
 
 #' \name{interpolate_cutoffs}
@@ -375,39 +348,40 @@ interpolate_reference <- function(ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild
 #' }
 #' \seealso{\code{\link{interpolate_reference}}}
 
-interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+interpolate_cutoffs <- function(ref_name = get_reference_names(),
                                 cutoffs = c(18.5, 25.0, 30.0),
                                 groups = c("underweight", "overweight", "obese"),
                                 years = c(0, 18),
                                 step = 0.01
 ) {
-  sex <- age <- height_l <- height_m <- height_s <- weight_l <- weight_m <- weight_s <- bmi_l <- bmi_m <- bmi_s <- z <- bmi_centile <- status <- NULL
+  .allocate(c("sex", "age", "bmi_l", "bmi_m", "bmi_s", "z", "bmi_centile", "status"))
 
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
 
   # Interpolated LMS parameter table
-  interp_lms <- interpolate_reference(
-    ref_name = ref_name, years = years, step = step)[, list(sex, age, bmi_l, bmi_m, bmi_s)]
+  ref_interpl <- interpolate_reference(ref_name = ref_name,
+                                      years = years,
+                                      step = step)
 
   # Calculate interpolated percentile cutoffs based on cutoffs at age 18
-  prms <- interp_lms[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
+  prms <- ref_interpl[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
   cts <- prms[, list(z = transform_to_zscore(cutoffs, l = bmi_l, m = bmi_m, s = bmi_s)), by = sex]
 
   # Repeat the interpolated parameters as many times as cutoffs
   # for each sex
-  tmp <- vector("list", length = length(interp_lms[, levels(sex)]))
-  names(tmp) <- interp_lms[, levels(sex)]
+  tmp <- vector("list", length = length(ref_interpl[, levels(sex)]))
+  names(tmp) <- ref_interpl[, levels(sex)]
 
-  for (s in interp_lms[, levels(sex)]) {
-    tmp[[s]] <- interp_lms[sex == s, list(
+  for (s in ref_interpl[, levels(sex)]) {
+    tmp[[s]] <- ref_interpl[sex == s, list(
         age = rep(age, times = length(cutoffs)),
         sex = rep(sex, times = length(cutoffs)),
         bmi_l = rep(bmi_l, times = length(cutoffs)),
         bmi_m = rep(bmi_m, times = length(cutoffs)),
         bmi_s = rep(bmi_s, times = length(cutoffs)),
-        z = cts[sex == s, rep(z, each = interp_lms[sex == s, .N])],
-        status = rep(groups, each = interp_lms[sex == s, .N]))]
+        z = cts[sex == s, rep(z, each = ref_interpl[sex == s, .N])],
+        status = rep(groups, each = ref_interpl[sex == s, .N]))]
   }
 
   # Collect sex specific data
@@ -443,7 +417,7 @@ interpolate_cutoffs <- function(ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild
 
 # TODO: Put this function and the other one for BMI-SDS together
 adiposity_status_bmi <- function(cresc_data,
-                               ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                               ref_name = get_reference_names(),
                                bounds = list(underweight = c(NA, 18.5), normal = c(18.5, 25), overweight = c(25, 30), obese = c(30, NA)),
                                years = c(0, 18),
                                step = 0.01
@@ -586,7 +560,7 @@ adiposity_status_bmi_sds <- function(cresc_data,
 #' }
 #' \value{`data.table` with BMI median.}
 
-assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer-Hauschild")) {
+assign_median_bmi <- function(cresc_data, ref_name = get_reference_names()) {
 
   # Assign global variables
   sex <- age <- bmi <- bmi_m <- NULL
@@ -594,20 +568,20 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
   ref_name <- match.arg(ref_name)
 
   # Interpolate reference
-  interp_lms <- interpolate_reference(ref_name)
+  ref_interpl <- interpolate_reference(ref_name, measure = "BMI")
 
   # Allocate BMI to be interpolated
   cresc_data[, bmi_m := -1000];
 
   # Map the age the interpolated LMS parameters
-  ref_indices_female <- interp_lms[, which(sex == levels(sex)[1])] - 1
-  ref_indices_male <- interp_lms[, which(sex == levels(sex)[2])] - 1
+  fidx <- ref_interpl[, which(sex == levels(sex)[1])] - 1
+  midx <- ref_interpl[, which(sex == levels(sex)[2])] - 1
 
   bmimed <- assignMedianBmiCpp(
     cresc_data[, bmi], cresc_data[, age],
-    cresc_data[, sex], interp_lms[, age],
-    interp_lms[, bmi_m], ref_indices_female,
-    ref_indices_male
+    cresc_data[, sex], ref_interpl[, age],
+    ref_interpl[, bmi_m], fidx,
+    midx
   )
 
   cresc_data[, bmi_m := bmimed]
@@ -615,10 +589,35 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
   return(cresc_data)
 }
 
+# Function to allow for z-score transformation for each reference & measures
+.transform_cresc_measurements <- function(cresc_data, ref_name, measure) {
+    # Map the age the interpolated LMS parameters
+    ref <- interpolate_reference(ref_name, measure = measure)
+
+    # Indices must be shifted by 1 due to R's 1-based indexing
+    fidx <- ref[, which(get("sex") == levels(get("sex"))[1])] - 1
+    midx <- ref[, which(get("sex") == levels(get("sex"))[2])] - 1
+
+    # Find the relevant indices in reference for age, sex using C++
+    idx <- cresc_data[, findAgeIndicesCpp(age, sex, ref[, get("age")], fidx, midx)] + 1
+
+    # Iterate over all measures
+    for (meas in tolower(measure)) {
+      cols <- paste0(meas, c("", "_l", "_m", "_s"))
+      tmp <- cresc_data[, list(.SD, ref[idx, .SD, .SDcols = patterns(paste0(meas, c("_l|", "_m|", "_s"), collapse = ""))]),
+                        .SDcols = meas]
+      setnames(tmp, cols)
+      cresc_data[, paste0(meas, "_sds_2") :=
+        tmp[, transform_to_zscore(get(cols[1]), get(cols[2]), get(cols[3]), get(cols[4]))]]
+    }
+
+    return(cresc_data)
+  }
+
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
-#' \usage{prepare_dataset(file_obese, file_control, ref_name, n_train,
-#' center_age, use_days, encode_sex, use_short_ids, include_baseline, seed)}
+#' \usage{prepare_dataset(file_obese, file_control, ref_name, measure, n_train,
+#' center_age, use_days, encode_sex, use_short_ids, include_baseline, remove_duplicates, seed)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
@@ -635,12 +634,14 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
 #'   \item{file_obese}{CrescNet file path for obese labeled subjects.}
 #'   \item{file_control}{CrescNet file path for control labeled subjects.}
 #'   \item{ref_name}{Which reference to use.}
+#'   \item{measure}{Which measure to use. Either "Weight", "Height" or "BMI".}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
 #'   \item{use_days}{Age given in days, instead of years? Default: FALSE}
 #'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
 #'   \item{use_short_ids}{Shorter subject IDs? Default: TRUE}
 #'   \item{include_baseline}{First measurements as separate variables? Default: TRUE}
+#'   \item{remove_duplicates}{Remove duplicates? Default: TRUE}
 #'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
 #' }
 #' \value{
@@ -649,158 +650,86 @@ assign_median_bmi <- function(cresc_data, ref_name = c("WHO", "KiGGS", "Kromeyer
 
 prepare_dataset <- function(file_obese,
                             file_control,
-                            ref_name=c("WHO", "KiGGS", "Kromeyer-Hauschild"),
+                            ref_name = get_reference_names(),
+                            measure = "BMI",
                             n_train = 100,
                             center_age = FALSE,
                             use_days = FALSE,
                             encode_sex = FALSE,
                             use_short_ids = TRUE,
                             include_baseline = TRUE,
+                            remove_duplicates = TRUE,
                             seed = 1
 ) {
-  # Define variables
-  # Fix issues with R CMD check by defining each variable used in the data.table locally
-  new_id <- N <- bmi_sds_alt <- weight_sds_alt <- height_sds_alt <- NULL
-  subject_id <- age <- type <- sex <- age_group <- measurement_id <- dupl_age <- NULL
-  height <- height_l <- height_m <- height_s <- NULL
-  weight <- weight_l <- weight_m <- weight_s <- NULL
-  bmi <- bmi_l <- bmi_m <- bmi_s <- NULL
-
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
 
   # Loading CrescNet data & pool data sets
-  obese <- data.table::fread(file_obese, header=TRUE)[, type := "obese*"]
-  control <- data.table::fread(file_control, header=TRUE)[, type := "control*"]
-  cresc_data <- rbind(obese, control)
+  cresc_data <- rbind(data.table::fread(file_obese,
+                                        header = TRUE,
+                                        stringsAsFactors = TRUE)[, "type" := "obese*"],
+                      data.table::fread(file_control,
+                                        header=TRUE,
+                                        stringsAsFactors = TRUE)[, "type" := "control*"])
 
-  # Interpolate reference
-  interp_lms <- interpolate_reference(ref_name)
-
-  # Allocate BMI to be interpolated
-  cresc_data[, bmi_sds_alt := -1000];
-  cresc_data[, height_sds_alt := -1000];
-  cresc_data[, weight_sds_alt := -1000];
-
-  # Map the age the interpolated LMS parameters
-  ref_indices_female <- interp_lms[, which(sex == levels(sex)[1])] - 1
-  ref_indices_male <- interp_lms[, which(sex == levels(sex)[2])] - 1
-
-  height_sds_new <- calculateZscoresCpp(
-    cresc_data[, height], cresc_data[, age], cresc_data[, sex],
-    interp_lms[, age], interp_lms[, height_l], interp_lms[, height_m], interp_lms[, height_s],
-    ref_indices_female, ref_indices_male
-  )
-
-  weight_sds_new <- calculateZscoresCpp(
-    cresc_data[, weight], cresc_data[, age], cresc_data[, sex],
-    interp_lms[, age], interp_lms[, weight_l], interp_lms[, weight_m], interp_lms[, weight_s],
-    ref_indices_female, ref_indices_male
-  )
-
-  bmi_sds_new <- calculateZscoresCpp(
-    cresc_data[, bmi], cresc_data[, age], cresc_data[, sex],
-    interp_lms[, age], interp_lms[, bmi_l], interp_lms[, bmi_m], interp_lms[, bmi_s],
-    ref_indices_female, ref_indices_male
-  )
-
-  # Update data.table
-  cresc_data[, weight_sds_alt := weight_sds_new]
-  cresc_data[, height_sds_alt := height_sds_new]
-  cresc_data[, bmi_sds_alt := bmi_sds_new]
-
-  # TODO: CHECK THE RESULTS OF THE FOLLOWING FUNCTION CALLS, PROBABLY REMOVE THEM
-  # Transform to Z-scores using given reference
-  # Note, that age is given in months in the reference
-  # TODO: Sex information is missing
-  # Hot fix: Included the sex indices - 1 for C++
-  # ref_indices_female <- ref[, which(sex == levels(sex)[1])] - 1
-  # ref_indices_male <- ref[, which(sex == levels(sex)[2])] - 1
-
-  # height_sds_new <- interpolateToZscoreCpp(
-  #   cresc_data[, height], cresc_data[, age * 12], cresc_data[, sex],
-  #   ref[, age], ref[, height_l], ref[, height_m], ref[, height_s],
-  #   ref_indices_female, ref_indices_male
-  # )
-
-  # weight_sds_new <- interpolateToZscoreCpp(
-  #   cresc_data[, weight], cresc_data[, age * 12], cresc_data[, sex],
-  #   ref[, age], ref[, weight_l], ref[, weight_m], ref[, weight_s],
-  #   ref_indices_female, ref_indices_male
-  # )
-
-  # bmi_sds_new <- interpolateToZscoreCpp(
-  #   cresc_data[, bmi], cresc_data[, age * 12], cresc_data[, sex],
-  #   ref[, age], ref[, bmi_l], ref[, bmi_m], ref[, bmi_s],
-  #   ref_indices_female, ref_indices_male
-  # )
-
-  # # Update data.table
-  # cresc_data[, weight_sds_new := weight_sds_new]
-  # cresc_data[, height_sds_new := height_sds_new]
-  # cresc_data[, bmi_sds_new := bmi_sds_new]
-
-  # Set shorter ids
-  if (use_short_ids) {
-    tmp <- cresc_data[, .N, by=subject_id]
-    tmp[, new_id := mcgraph::mcg.autonames("ID_", length(cresc_data[, unique(subject_id)]))]
-    cresc_data[, subject_id := tmp[, rep(new_id, N)]]
-  }
-
-  # Introduce factors
-  cresc_data[, sex := factor(sex, levels = c("female", "male"))]
-  cresc_data[, type := factor(type, levels = c("control*", "obese*"))]
   setnames(cresc_data, "gestational_age", "gest_age")
+  setkey(cresc_data, "subject_id")
+  cresc_data[, ("type") := factor(get("type"), levels = c("control*", "obese*"))]
 
-  # Encode sex continous over a range of -1 to 1 from male to female
-  if (encode_sex) {
-    cresc_data[, sex := unlist(lapply(sex, function(x) return(if (x == "male") 1 else -1)))]
+  # Assign the number of measurements per subject
+  cresc_data[, N := rep(.N, .N), by = "subject_id"]
+
+  # Should shorter ids been used?
+  if (use_short_ids) {
+    short_ids <- sort(cresc_data[, get("subject_id")])
+    levels(short_ids) <- mcg.autonames("ID_", length(levels(short_ids)))
+    cresc_data[, ("subject_id") := short_ids]
   }
 
-  # Center age
-  if (center_age) {
-    cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
+  # Sould sex be encoded as a continous variable over [-1, 1] from male to female?
+  cresc_data[, sex := if (encode_sex) {
+    unlist(lapply(sex, function(x) return(if (x == "male") 1 else -1)))
+    } else sex]
+
+  # Should age be set in days?
+  cresc_data <- cresc_data[, age := if (use_days) {
+    floor(age * 365.25)
+    } else age]
+
+  # Should age be centered?
+  cresc_data[, age := if (center_age) {
+    age - (max(age) - ((max(age) - min(age)) / 2))
+    } else age]
+
+  # Remove duplicated observations
+  # TODO: Include an option to toggle this
+  if (remove_duplicates) {
+    cresc_data <- cresc_data[duplicated(cresc_data) == FALSE, ]
   }
 
+  # Get z-score tranforms for the raw measurements
+  cresc_data <- .transform_cresc_measurements(cresc_data, ref_name, measure)
+
+  # Include first response measurement as baseline covariate?
   if (include_baseline) {
     # Get response at baseline, i.e. first measurement at approx age 0.5 years
-    # Note: use list instead of . to avoid NOTE when R CMD check
-    start <- cresc_data[age_group == "start", list(subject_id, age, weight, height, bmi)]
-    setnames(start, c("age", "weight", "height", "bmi"), c("age0", "weight0", "height0", "bmi0"))
-    after <- cresc_data[age_group != "start", ]
-
-    # Set keys for faster access / merging cresc_data_cp
+    start <- cresc_data[get("age_group") == "start", .SD, .SDcols = c("subject_id", "age", tolower(measure))]
+    setnames(start, c("age", tolower(measure)), c("age0", paste0(tolower(measure), "0")))
     setkey(start, subject_id)
-    cresc_data <- Hmisc::Merge(start, after, id = ~ subject_id, verbose = FALSE)
+    cresc_data <- merge(cresc_data[age_group != "start", ], start, by = "subject_id")
   }
-
-  # Find & remove duplicated observations
-  # Must copy explicitly because of self reference
-  # Remove duplicated ages, i.e. double measurements,
-  # TODO: Maybe average them better?
-  cresc_data_cp <- copy(cresc_data)
-  cresc_data <- cresc_data_cp[,  dupl_age := duplicated(age), by = subject_id]
-  cresc_data <- cresc_data[dupl_age == FALSE, ]
-  cresc_data[, dupl_age := NULL]
 
   # Enumerate measurements with ID
-  cresc_data[, measurement_id := seq(1, length(weight), 1), by = subject_id]
+  cresc_data[, measurement_id := seq_len(.N), by = subject_id]
 
-  # Get age in days
-  if (use_days) {
-    cresc_data <- cresc_data[, age := floor(age * 365.25)]
-  }
-
-  # Draw randomly subjects
+  # Draw randomly subjects for data splitting
   set.seed(seed)
   rndidx <- sample(seq(1, length(cresc_data[, unique(subject_id)]), 1), size = n_train)
   ids <- cresc_data[, unique(subject_id)][rndidx]
 
-  # Split into test and training set for internal validation
-  crescData_train <- cresc_data[subject_id %in% ids, ]
-  cresc_data_test <- cresc_data[!(subject_id %in% ids), ]
-
-  return(list(train = crescData_train, test = cresc_data_test))
+  # Split data
+  return(list(train = cresc_data[subject_id %in% ids, ],
+              test = cresc_data[!(subject_id %in% ids), ]))
 }
 
 #' \name{create_age_cohorts}
@@ -822,7 +751,7 @@ prepare_dataset <- function(file_obese,
 #' }
 
 create_age_cohorts <- function(cresc_data, age_range) {
-  age <- NULL
+  .allocate("age")
 
   # Assign age ranges to observations
   age_cohorts <- getAgeCohortsCpp(cresc_data[, age], age_range)
@@ -873,7 +802,9 @@ create_age_cohorts <- function(cresc_data, age_range) {
 #' }
 
 do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, split = 0.97) {
-    N <- age_group <- measurement_id <- bmi <- bmi_sds <- mean_var <- mu_bmi <- sd_var <- subject_id <- type <- var_bmi <- NULL
+    .allocate(c("N", "age_group", "measurement_id", "bmi",
+                "bmi_sds", "mean_var", "mu_bmi", "sd_var",
+                "subject_id", "type", "var_bmi"))
 
     # Get the BMI-SDS variability for each groups
     varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = list(subject_id, type)]
@@ -938,8 +869,8 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 #' \value{Series of `ggplot` plots.}
 
 check_model <- function(model, cresc_data, seed = 1) {
+  .allocate(c("bmi", "fitted", "resid", "subject_id", "rndidx", "age", "weight"))
   tmp <- copy(cresc_data)
-  bmi <- fitted <- resid <- subject_id <- rndidx <- age <- weight <- NULL
 
   # Define plotting settings
   blue <- "#5499C7"
@@ -1030,7 +961,7 @@ check_model <- function(model, cresc_data, seed = 1) {
 #' \value{A `ggplot` object and a `data.table` with prediction estimates.}
 
 make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
-  subject_id <- age <- predicted <- weight <- NULL
+  .allocate(c("subject_id", "age", "predicted", "weight"))
 
   blue <- "#5499C7"
   set.seed(seed)
@@ -1074,7 +1005,8 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
 #' \value{A `ggplot` object.}
 
 ggvario <- function(v) {
-  variog <- type <- NULL
+  .allocate(c("variog", "type"))
+  #variog <- type <- NULL
 
   g <- ggplot(v, aes(x = dist, y = variog))
   g <- g +
@@ -1438,6 +1370,57 @@ getAgeCohortsCpp <- function(...) {
 
 getUniqueIdsCpp <- function(...) {
   return(getUniqueIdsCpp(...))
+}
+
+# Helper function to allocate variables used in a data.table
+# Takes a 'character' or 'lang' vector of variable names and assigns NULL
+.allocate <- function(x) {
+
+  # This also creates the variables based on their
+  # names into the scope of the parent, i.e. usually the function,
+  # .allocate was called from
+  for (v in x) {
+    assign(v, NULL, envir = parent.frame())
+  }
+
+  return(x)
+}
+
+# R packages should contain .rda / .RData files
+# but these are inflexible, i.e. you have to use
+# the exact name of the file. The function below
+# makes sure that the right file is loaded
+.load_rda <- function(rda_file) {
+  rda_name <- str2lang(load(rda_file))
+  return(eval(rda_name))
+}
+
+# Function to map the reference tables to the correct measures
+.map_ref <- function(ref_name, measure) {
+  # This retrieves the absolute path of the .rda files, which are located in inst/extdata
+  extdata <- system.file("extdata", package = getPackageName())
+  filenms <- paste0(extdata, "/", tolower(ref_name), "_", tolower(measure), ".rda")
+  filenms <- filenms[file.exists(filenms)]
+
+  if (length(filenms) == 0) {
+    stop("Reference file not found")
+  } else if (length(filenms) == 1) {
+    return(.load_rda(filenms))
+  } else {
+    ref <- .load_rda(filenms[1])
+    for (fn in filenms[-1]) ref <- merge(ref, .load_rda(fn), all = TRUE)
+  }
+
+  return(ref)
+}
+
+# TODO: This should be checked
+# Primitive interpolation function
+.interpl <- function(x, y = NULL, xout, interpol_method = "linear", spline_method = "natural", ...) {
+  switch(interpol_method,
+         "linear" = approx(x = x, y = y, xout = xout, ...)$y,
+         "spline" = spline(x = x, y = y, xout = xout, method = spline_method, ...)$y
+  )
 }
 
 ###  place startup loads here
