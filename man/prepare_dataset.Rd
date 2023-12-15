@@ -1,7 +1,8 @@
 \name{prepare_dataset} 
 \alias{prepare_dataset} 
 \usage{prepare_dataset(file_obese, file_control, ref_name, measure, n_train, 
-center_age, use_days, encode_sex, use_short_ids, include_baseline, remove_duplicates, seed)} 
+center_age, use_days, encode_sex, use_short_ids, include_baseline, remove_duplicates, 
+seed, age_range, ...)} 
 \title{Loading an preprocessing of the CrescNet dataset.} 
 \description{ 
 Transform the raw measurements of z-scores. 
@@ -27,6 +28,8 @@ transforming variables.
   \item{include_baseline}{First measurements as separate variables? Default: TRUE} 
   \item{remove_duplicates}{Remove duplicates? Default: TRUE} 
   \item{seed}{Seed used for random sampling of subjects. Default: 1} 
+  \item{age_range}{Range of ages to keep. Default: NULL} 
+  \item{...}{Other parameters passed to \code{\link{interpolate_reference}}.} 
 } 
 \value{ 
  A data.frame contraining all variables of the CrescNet dataset. 

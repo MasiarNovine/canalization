@@ -1,3 +1,54 @@
+#' \name{capwords}
+#' \alias{capwords}
+#' \title{Capitalize the first letter of each word}
+#' \usage{capwords(s, strict)}
+#' \description{Capitalize the first letter of each word}
+#' \arguments{
+#' \item{s}{A character vector}
+#' \item{strict}{A logical value. Should only the first letter be capitalized? Default: FALSE. }
+#' }
+#' \details{
+#' The function is taken from the documentation of the \code{base::chartr} function
+#' and capitalizes the first letter of each word.
+#' }
+#' \value{A character vector}
+
+capwords <- function(s, strict = FALSE) {
+    cap <- function(s) {
+        paste(toupper(substring(s, 1, 1)), {
+            s <- substring(s, 2);
+            # strict = TRUE` capitalizes the first letter, but only of the first word
+            if (strict) tolower(s) else s
+        }, sep = "", collapse = " " )
+    }
+    sapply(strsplit(s, split = " "), cap, USE.NAMES = !is.null(names(s)))
+}
+
+#' \name{capfactorDT}
+#' \alias{capfactorDT}
+#' \title{Capitalize the first letter of each word, but keeping factors as factors}
+#' \usage{capfactorDT(dt, colnames)}
+#' \description{Capitalize the first letter of each word, but keeping factors as factors}
+#' \arguments{
+#'   \item{dt}{The data.table containing the columns.}
+#'   \item{colnames}{A character vector with the names for factor columns.}
+#' }
+#' \details{
+#' This function uses the \code{capwords} function and capitalizes the first letter of
+#' each word in the given columns of a data.table based on the given column names,
+#' but will keep factors as factors.
+#' }
+#' \value{The initial data.table with the updated column}
+#' \seealso{See also \code{\link{capwords}}.}
+
+capfactorDT <- function(dt, colnames) {
+    col <- dt[[colnames]]  # Use double brackets to extract the column as a factor
+    levels(col) <- capwords(levels(col))
+    dt[[colnames]] <- col  # Use double brackets to assign the updated factor back to the column
+
+    return(dt)
+}
+
 #' \name{get_indices}
 #' \alias{get_indices}
 #' \title{Retrieve the pair of indices for linear interpolation.}
@@ -297,6 +348,7 @@ interpolate_reference <- function(ref_name = get_reference_names(),
                                   interpol_method = c("linear", "spline"),
                                   spline_method = "natural"
 ) {
+  age <- sex <- patterns <- NULL
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
   interpol_method <- match.arg(interpol_method)
@@ -372,7 +424,7 @@ interpolate_cutoffs <- function(ref_name = get_reference_names(),
                                 years = c(0, 18),
                                 step = 0.01
 ) {
-  .allocate(c("sex", "age", "bmi_l", "bmi_m", "bmi_s", "z", "bmi_centile", "status"))
+  age <- sex <- bmi_l <- bmi_m <- bmi_s <- z <- bmi_centile <- status <- patterns <- NULL
 
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
@@ -608,9 +660,10 @@ assign_median_bmi <- function(cresc_data, ref_name = get_reference_names()) {
 }
 
 # Function to allow for z-score transformation for each reference & measures
-.transform_cresc_measurements <- function(cresc_data, ref_name, measure) {
+.transform_measures <- function(cresc_data, ref_name, measure, ...) {
+    age <- sex <- patterns <- NULL
     # Map the age the interpolated LMS parameters
-    ref <- interpolate_reference(ref_name, measure = measure)
+    ref <- interpolate_reference(ref_name, measure = measure, ...)
 
     # Indices must be shifted by 1 due to R's 1-based indexing
     fidx <- ref[, which(get("sex") == levels(get("sex"))[1])] - 1
@@ -622,10 +675,10 @@ assign_median_bmi <- function(cresc_data, ref_name = get_reference_names()) {
     # Iterate over all measures
     for (meas in tolower(measure)) {
       cols <- paste0(meas, c("", "_l", "_m", "_s"))
-      tmp <- cresc_data[, list(.SD, ref[idx, .SD, .SDcols = patterns(paste0(meas, c("_l|", "_m|", "_s"), collapse = ""))]),
-                        .SDcols = meas]
+      pat <- c("_l|", "_m|", "_s")
+      tmp <- cresc_data[, list(.SD, ref[idx, .SD, .SDcols = patterns(paste0(meas, pat, collapse = ""))]), .SDcols = meas]
       setnames(tmp, cols)
-      cresc_data[, paste0(meas, "_sds_2") :=
+      cresc_data[, paste0(meas, "_sds_alt") :=
         tmp[, transform_to_zscore(get(cols[1]), get(cols[2]), get(cols[3]), get(cols[4]))]]
     }
 
@@ -635,7 +688,8 @@ assign_median_bmi <- function(cresc_data, ref_name = get_reference_names()) {
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
 #' \usage{prepare_dataset(file_obese, file_control, ref_name, measure, n_train,
-#' center_age, use_days, encode_sex, use_short_ids, include_baseline, remove_duplicates, seed)}
+#' center_age, use_days, encode_sex, use_short_ids, include_baseline, remove_duplicates,
+#' seed, age_range, ...)}
 #' \title{Loading an preprocessing of the CrescNet dataset.}
 #' \description{
 #' Transform the raw measurements of z-scores.
@@ -661,6 +715,8 @@ assign_median_bmi <- function(cresc_data, ref_name = get_reference_names()) {
 #'   \item{include_baseline}{First measurements as separate variables? Default: TRUE}
 #'   \item{remove_duplicates}{Remove duplicates? Default: TRUE}
 #'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
+#'   \item{age_range}{Range of ages to keep. Default: NULL}
+#'   \item{...}{Other parameters passed to \code{\link{interpolate_reference}}.}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
@@ -677,25 +733,26 @@ prepare_dataset <- function(file_obese,
                             use_short_ids = TRUE,
                             include_baseline = TRUE,
                             remove_duplicates = TRUE,
-                            seed = 1
+                            seed = 1,
+                            age_range = NULL,
+                            ...
 ) {
+  subject_id <- sex <- age <- measurement_id <- N <- age_group <- NULL
+
   # Check, whether the reference is given
   ref_name <- match.arg(ref_name)
 
   # Loading CrescNet data & pool data sets
   cresc_data <- rbind(data.table::fread(file_obese,
                                         header = TRUE,
-                                        stringsAsFactors = TRUE)[, "type" := "obese*"],
+                                        stringsAsFactors = TRUE)[, "type" := "adiposity"],
                       data.table::fread(file_control,
                                         header=TRUE,
-                                        stringsAsFactors = TRUE)[, "type" := "control*"])
+                                        stringsAsFactors = TRUE)[, "type" := "control"])
 
   setnames(cresc_data, "gestational_age", "gest_age")
   setkey(cresc_data, "subject_id")
-  cresc_data[, ("type") := factor(get("type"), levels = c("control*", "obese*"))]
-
-  # Assign the number of measurements per subject
-  cresc_data[, N := rep(.N, .N), by = "subject_id"]
+  cresc_data[, ("type") := factor(get("type"), levels = c("control", "adiposity"))]
 
   # Should shorter ids been used?
   if (use_short_ids) {
@@ -705,28 +762,31 @@ prepare_dataset <- function(file_obese,
   }
 
   # Sould sex be encoded as a continous variable over [-1, 1] from male to female?
-  cresc_data[, sex := if (encode_sex) {
-    unlist(lapply(sex, function(x) return(if (x == "male") 1 else -1)))
-    } else sex]
+  if (encode_sex) {
+    cresc_data[, sex := unlist(lapply(sex, function(x) return(if (x == "male") 1 else -1)))]
+  }
 
   # Should age be set in days?
-  cresc_data <- cresc_data[, age := if (use_days) {
-    floor(age * 365.25)
-    } else age]
+  if (use_days) {
+    cresc_data <- cresc_data[, age := floor(age * 365.25)]
+  }
 
   # Should age be centered?
-  cresc_data[, age := if (center_age) {
-    age - (max(age) - ((max(age) - min(age)) / 2))
-    } else age]
+  if (center_age) {
+    cresc_data[, age := age - (max(age) - ((max(age) - min(age)) / 2))]
+  }
 
   # Remove duplicated observations
   # TODO: Include an option to toggle this
   if (remove_duplicates) {
-    cresc_data <- cresc_data[duplicated(cresc_data) == FALSE, ]
+    cresc_data <- cresc_data[!duplicated(cresc_data), ]
   }
 
+  # Assign the number of measurements per subject
+  cresc_data[, N := rep(.N, .N), by = "subject_id"]
+
   # Get z-score tranforms for the raw measurements
-  cresc_data <- .transform_cresc_measurements(cresc_data, ref_name, measure)
+  cresc_data <- .transform_measures(cresc_data, ref_name, measure, interpol_method = "spline")
 
   # Include first response measurement as baseline covariate?
   if (include_baseline) {
@@ -739,6 +799,11 @@ prepare_dataset <- function(file_obese,
 
   # Enumerate measurements with ID
   cresc_data[, measurement_id := seq_len(.N), by = subject_id]
+
+  # Include age cohorts
+  if (!is.null(age_range)) {
+    cresc_data <- create_age_cohorts(cresc_data, age_range)
+  }
 
   # Draw randomly subjects for data splitting
   set.seed(seed)
@@ -769,7 +834,7 @@ prepare_dataset <- function(file_obese,
 #' }
 
 create_age_cohorts <- function(cresc_data, age_range) {
-  .allocate("age")
+  age <- NULL
 
   # Assign age ranges to observations
   age_cohorts <- getAgeCohortsCpp(cresc_data[, age], age_range)
@@ -820,9 +885,7 @@ create_age_cohorts <- function(cresc_data, age_range) {
 #' }
 
 do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, split = 0.97) {
-    .allocate(c("N", "age_group", "measurement_id", "bmi",
-                "bmi_sds", "mean_var", "mu_bmi", "sd_var",
-                "subject_id", "type", "var_bmi"))
+    subject_id <- age_group <- measurement_id <- bmi <- bmi_sds <- type <- mean_var <- sd_var <- mu_bmi <- var_bmi <- age_group <- N <- NULL
 
     # Get the BMI-SDS variability for each groups
     varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = list(subject_id, type)]
@@ -841,8 +904,8 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 
     # Select based on the 97th centile individually for each study group
     pop_ob_subj <- bmi_pop[which(bmi_sds > qnorm(split, 0, 1)), unique(subject_id)]
-    bmi_pop[subject_id %in% pop_ob_subj, type := "Obese* (simulated)"]
-    bmi_pop[!(subject_id %in% pop_ob_subj), type := "Control* (simulated)"]
+    bmi_pop[subject_id %in% pop_ob_subj, type := "Adiposity (simulated)"]
+    bmi_pop[!(subject_id %in% pop_ob_subj), type := "Control (simulated)"]
 
     # Sampling
     subs_ob_subj <- sample(pop_ob_subj, n_subjects)
@@ -887,6 +950,8 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 #' \value{Series of `ggplot` plots.}
 
 check_model <- function(model, cresc_data, seed = 1) {
+  subject_id <- age <- bmi <- NULL
+
   .allocate(c("bmi", "fitted", "resid", "subject_id", "rndidx", "age", "weight"))
   tmp <- copy(cresc_data)
 
@@ -979,7 +1044,7 @@ check_model <- function(model, cresc_data, seed = 1) {
 #' \value{A `ggplot` object and a `data.table` with prediction estimates.}
 
 make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
-  .allocate(c("subject_id", "age", "predicted", "weight"))
+  subject_id <- age <- predicted <- weight <- NULL
 
   blue <- "#5499C7"
   set.seed(seed)
@@ -1023,8 +1088,7 @@ make_predictions <- function(model, cresc_data, seed = 1, log = TRUE) {
 #' \value{A `ggplot` object.}
 
 ggvario <- function(v) {
-  .allocate(c("variog", "type"))
-  #variog <- type <- NULL
+  variog <- type <- NULL
 
   g <- ggplot(v, aes(x = dist, y = variog))
   g <- g +
@@ -1120,6 +1184,34 @@ theme_elegant <- function(base_size = 11,
         strip.text.y = strip.text.y,
         ...
     )
+}
+
+#' \name{theme_elegant_grey}
+#' \alias{theme_elegant_grey}
+#' \title{Custom ggplot theme}
+#' \description{A customized ggplot theme}
+#' \usage{
+#' theme_elegant_grey(base_size, base_family,...)
+#' }
+#' \arguments{
+#' \item{base_size}{The base font size.}
+#' \item{base_family}{The base font family.}
+#' \item{...}{Other arguments passed to `theme`.}
+#' }
+#' \details{
+#' A customized ggplot theme.
+#' }
+#' \value{A `ggplot` theme.}
+
+theme_elegant_grey <- function(base_size = 11, base_family = "Helvetica", ...) {
+  theme(
+    text = element_text(family = base_family, size = base_size),
+    legend.position = "bottom",
+    legend.title = element_text(hjust = 0.5),
+    legend.justification = "center",
+    legend.direction = "horizontal",
+    legend.box = "vertical",
+    ...)
 }
 
 # DOCUMENTATION FOR C++ CODE
