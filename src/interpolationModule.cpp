@@ -379,7 +379,7 @@ arma::vec findIndicesCpp(const arma::vec& ages, const arma::vec& referenceAges) 
 // Rcpp module definition
 RCPP_MODULE(interpolation_module) {
     Rcpp::function("getIndicesCpp", &getIndicesCpp);
-    Rcpp::function("findIndicesCpp", &getIndicesCpp);
+    Rcpp::function("findIndicesCpp", &findIndicesCpp);
     Rcpp::function("getProportionCpp", &getProportionCpp);
     Rcpp::function("getAgeCohortsCpp", &getAgeCohortsCpp);
     Rcpp::function("getUniqueIdsCpp", &getUniqueIdsCpp);
