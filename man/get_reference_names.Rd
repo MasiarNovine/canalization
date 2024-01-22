@@ -4,6 +4,3 @@
 \description{List of available reference tables.} 
 \usage{get_reference_names()} 
 \value{`vector` of available reference tables.} 
-\seealso{ 
-\code{\link{load_reference}} 
-} 

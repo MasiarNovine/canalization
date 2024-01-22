@@ -2,7 +2,7 @@
 \alias{load_ref} 
 \title{Load references.} 
 \description{Loads LMS references.} 
-\usage{load_ref(ref_name = "Kromeyer-Hauschild", measure = c("Weight", "Height", "BMI", "all"))} 
+\usage{load_ref(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"), measure = c("all", "Weight", "Height", "BMI"))} 
 \arguments{ 
   \item{ref_name}{Name of the reference table.} 
   \item{measure}{Vector of measures.} 

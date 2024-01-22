@@ -9,6 +9,6 @@ interpolated reference table, which for convenience is interpolated in 0.01 year
 } 
 \arguments{ 
   \item{cresc}{CrescNet data.table.} 
-  \item{ref}{Reference data.table.} 
+  \item{ref}{Reference data.table given in wide format.} 
 } 
 \value{`data.table` with z-normalized values.} 
