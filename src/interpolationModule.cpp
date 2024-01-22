@@ -183,7 +183,6 @@ arma::vec findAgeIndicesCpp(const arma::vec& inputAges, const Rcpp::StringVector
     return indices;
 }
 
-//[[Rcpp::export]]
 arma::vec mapAgeValuesCpp(const arma::vec& inputAgeValues, const arma::vec& referenceAgeValues) {
     arma::vec indices(inputAgeValues.n_elem, arma::fill::zeros);
 
@@ -385,7 +384,6 @@ RCPP_MODULE(interpolation_module) {
     Rcpp::function("getUniqueIdsCpp", &getUniqueIdsCpp);
     Rcpp::function("interpolateCpp", &interpolateCpp);
     Rcpp::function("findAgeIndicesCpp", &findAgeIndicesCpp);
-    Rcpp::function("mapAgeValuesCpp", &mapAgeValuesCpp);
     Rcpp::function("calculateZScoreCpp", &calculateZScoreCpp);
     Rcpp::function("calculateZscoresCpp", &calculateZscoresCpp);
     Rcpp::function("calculateCentileCpp", &calculateCentileCpp);
