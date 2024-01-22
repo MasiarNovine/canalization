@@ -204,10 +204,16 @@ interpolate_to_zscore <- function(value, age, ref, type=c("Weight", "Height", "B
 #' linear transformation for ages in close proximity are used.
 #' }
 #' \arguments{
-#'  \item{ref}{The reference data.frame.}
+#'  \item{ref_name}{The name of the reference}
+#'  \item{measure}{The measure to interpolate. Either 'all', 'Weight', 'Height' or 'BMI'.}
+#'  \item{age_range}{The age range in years to interpolate.}
+#'  \item{step}{The age step for interpolation.}
 #' }
 
-linref <- function(ref, age_range = c(0, 18), step = 0.01) {
+linref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO"), measure = c("all", "Weight", "Height", "BMI"), age_range = c(0, 18), step = 0.01) {
+  #ref_name <- tolower(match.arg(ref_name))
+  #measure <- tolower(match.arg(measure))
+  ref <- load_ref(ref_name = ref_name, measure = measure)
   age <- sex <- measure <- param <- nu <- mu <- sigma <- NULL
   inter <- rbind(
     ref[, approx(x = age, y = nu, xout = seq(age_range[1], age_range[2], step)), by = list(sex, measure)][, param := "nu"],
@@ -216,7 +222,8 @@ linref <- function(ref, age_range = c(0, 18), step = 0.01) {
   )
   inter[, param := factor(param, levels = c("nu", "mu", "sigma"))]
   setnames(inter, c("x", "y"), c("age", "value"))
-  return(inter)
+  interlong <- dcast(inter, measure + sex + age ~ param, value.var = "value")
+  return(interlong)
 }
 
 #' \name{transform_to_zscore}
@@ -306,7 +313,7 @@ get_reference_names <- function() {
 #' \alias{load_ref}
 #' \title{Load references.}
 #' \description{Loads LMS references.}
-#' \usage{load_ref(ref_name = "Kromeyer-Hauschild", measure = c("Weight", "Height", "BMI", "all"))}
+#' \usage{load_ref(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"), measure = c("all", "Weight", "Height", "BMI"))}
 #' \arguments{
 #'   \item{ref_name}{Name of the reference table.}
 #'   \item{measure}{Vector of measures.}
@@ -330,10 +337,10 @@ load_ref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"),
   ref_name <- tolower(match.arg(ref_name))
   measure <- tolower(match.arg(measure))
   ref <- switch(ref_name,
-    "kromeyer-hauschild" = .map_ref(ref_name, measure),
-    "kiggs" = .map_ref(ref_name, measure),
-    "who" = .map_ref(ref_name, measure),
-    "iotf" = .map_ref(ref_name, measure)
+    "kromeyer-hauschild" = .load_ref(ref_name, measure),
+    "kiggs" = .load_ref(ref_name, measure),
+    "who" = .load_ref(ref_name, measure),
+    "iotf" = .load_ref(ref_name, measure)
   )
   return(ref)
 }
@@ -374,7 +381,7 @@ lincutoffs <- function(ref_name = get_reference_names(),
   .check_ref_name(ref_name)
 
   # Interpolated LMS parameter table
-  ref_interpl <- linref(ref_name = ref_name, age_range = years, step = step)
+  ref_interpl <- linref(ref_name = ref_name, measure = "BMI", age_range = years, step = step)
 
   # Calculate interpolated percentile cutoffs based on cutoffs at age 18 years
   prms <- ref_interpl[age == 18, list(bmi_l, bmi_m, bmi_s), by = sex]
@@ -408,6 +415,7 @@ lincutoffs <- function(ref_name = get_reference_names(),
   return(res)
 }
 
+# DEPRECATED use cutstatus instead
 #' \name{nutritional_status_bmi}
 #' \alias{nutritional_status_bmi}
 #' \title{Weight status assignment}
@@ -487,6 +495,7 @@ nutritional_status_bmi <- function(cresc_data,
   return(res[, tmp_id := NULL])
 }
 
+# DEPRECATED use cutstatus instead
 #' \name{nutritional_status_bmi_sds}
 #' \alias{nutritional_status_bmi_sds}
 #' \usage{nutritional_status_bmi_sds(cresc_data, cutoffs)}
@@ -729,9 +738,50 @@ cutage <- function(x, breaks = c(-Inf, 2, 6, 11, 14, Inf),
   cut(x = x, breaks = breaks, labels = labels, right = TRUE)
 }
 
+#' \name{cutstatus}
+#' \alias{cutstatus}
+#' \title{Assigns nutrional status}
+#' \usage{cutstatus(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
+#'                  labels = c("underweight", "normal", "overweight", "obese"),
+#'                  right = TRUE,
+#'                  to_zscore = TRUE)}
+#' \description{Assigns nutrional status}
+#' \details{
+#' Assigns nutrional status, by default based on the classification of
+#' the International Obesity Task Force (IOTF). If `to_zscore = TRUE` (the default),
+#' the status is transformed from given quantiles to z-scores.
+#' }
+#' \arguments{
+#'   \item{x}{Status.}
+#'   \item{breaks}{Status boundaries.}
+#'   \item{labels}{Status labels.}
+#'   \item{right}{Whether the intervals are right-closed (default), left-open or both.}
+#'   \item{to_zscore}{Whether to transform to z-scores.}
+#'  }
+#' \value{
+#'   `factor` with status groups.
+#'  }
+#' \seealso{\code{\link{cut}}}
+
+cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
+                      labels = c("underweight", "normal", "overweight", "obese"),
+                      right = TRUE,
+                      to_zscore = TRUE
+) {
+  if (to_zscore) {
+    zs <- qnorm(breaks[!is.infinite(breaks)])
+    brks <- breaks
+    brks[!is.infinite(brks)] <- zs
+  } else {
+    brks <- breaks
+  }
+
+  cut(x = x, breaks = brks, labels = labels, right = TRUE)
+}
+
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
-#' \usage{prepare_dataset(file_adiposity, file_control, n_train,
+#' \usage{prepare_dataset(file_adiposity, file_control, n_train, is_znorm,
 #' center_age, use_days, encode_sex, short_ids, first_extra, check_dups,
 #' seed, age_range)}
 #' \title{Loading and preprocessing of the CrescNet dataset.}
@@ -775,7 +825,7 @@ prepare_dataset <- function(file_adiposity,
                             seed = 1,
                             age_range = NULL
 ) {
-  subject_id <- sex <- age <- record_id <- N <- age_group <- NULL
+  subject_id <- sex <- age <- record_id <- N <- age_group <- weight_sds <- height_sds <- bmi_sds <- NULL
 
   # Loading CrescNet data & pool data sets
   cresc_data <- rbind(data.table::fread(file_adiposity,
@@ -817,10 +867,7 @@ prepare_dataset <- function(file_adiposity,
   }
 
   if (is_znorm) {
-    cresc_data[, height_sds := NULL]
-    cresc_data[, bmi_sds := NULL]
-    ref <- load_ref(ref_name = "Kromeyer-Hauschild", measure = "all")
-    interpl <- dcast(linref(ref), measure + sex + age ~ param, value.var = "value")
+    interpl <- linref("Kromeyer-Hauschild", measure = "all")
     cresc_data <- znorm(cresc_data, interpl)
   }
 
@@ -1537,11 +1584,6 @@ getUniqueIdsCpp <- function(...) {
   return(getUniqueIdsCpp(...))
 }
 
-# Find the age values for the reference table
-.mapAgeValuesCpp <- function(...) {
-  return(mapAgeValuesCpp(...))
-}
-
 #' \name{findIndicesCpp}
 #' \alias{findIndicesCpp}
 #' \title{Find the indices for the age values in the reference table.}
@@ -1601,27 +1643,19 @@ findIndicesCpp <- function(...) {
 }
 
 # Function to map the reference tables to the correct measures
-.map_ref <- function(ref_name, measure) {
+.load_ref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"), measure = c("all", "Weight", "Height", "BMI")) {
+
   # This retrieves the absolute path of the .rda files, which are located in inst/extdata
   extdata <- system.file("extdata", package = getPackageName())
-
-  filenms <- if (measure != "all") {
-    paste0(extdata, "/", tolower(ref_name), "_", tolower(measure), ".rda")
-  } else {
-    paste0(extdata, "/", tolower(ref_name), ".rda")
-  }
+  filenms <- paste0(extdata, "/", tolower(ref_name), ".rda")
   filenms <- filenms[file.exists(filenms)]
 
   if (length(filenms) == 0) {
     stop("Reference file not found")
-  } else if (length(filenms) == 1) {
-    return(.load_rda(filenms))
-  } else {
-    ref <- .load_rda(filenms[1])
-    for (fn in filenms[-1]) ref <- merge(ref, .load_rda(fn), all = TRUE)
   }
 
-  return(ref)
+  ref <- .load_rda(filenms)
+  return (ref)
 }
 
 # TODO: This should be checked
