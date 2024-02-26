@@ -2,6 +2,58 @@
 #include <RcppArmadillo.h>
 #include <math.h>
 
+Rcpp::NumericVector sequence() {
+    return(1);
+}
+
+// TODO: FIX ROUNDING
+//[[Rcpp::export]]
+Rcpp::List quantizeCpp(arma::vec x,
+                       arma::vec y,
+                       int digits = 2,
+                       double step = 0.01
+) {
+    arma::vec xtmp = arma::round(x * pow(10, digits)) / pow(10, digits);
+    arma::vec ytmp = arma::round(y * pow(10, digits)) / pow(10, digits);
+    arma::vec r = arma::vec(4);
+    r[0] = arma::min(xtmp);
+    r[1] = arma::max(xtmp);
+    r[2] = arma::min(ytmp);
+    r[3] = arma::max(ytmp);
+
+    // Generate sequence from min to max with step size 0.01
+    // Round the sequence to 2 decimal places
+    arma::vec tmp = arma::regspace(arma::min(r), step, arma::max(r));
+    arma::vec sp = arma::round(tmp * std::pow(10, digits)) / std::pow(10, digits);
+    arma::vec frx = arma::vec(sp.n_elem);
+    arma::vec fry = arma::vec(sp.n_elem);
+    arma::uword n = sp.n_elem;
+
+    for (arma::uword i = 0; i < n; i++) {
+        for (arma::uword j = 0; j < xtmp.n_elem; j++) {
+            if (i != n - 1) {
+                if ((sp[i] <= xtmp[j]) & (sp[i + 1] > xtmp[j])) {
+                    frx[i] += 1;
+                }
+            }
+        }
+        for (arma::uword j = 0; j < ytmp.n_elem; j++) {
+            if (i != n - 1) {
+                if ((sp[i] <= ytmp[j]) & (sp[i + 1] > ytmp[j])) {
+                    fry[i] += 1;
+                }
+            }
+        }
+    }
+
+    Rcpp::List res = Rcpp::List::create(
+        Rcpp::Named("px") = frx / arma::sum(frx),
+        Rcpp::Named("py") = fry / arma::sum(fry)
+    );
+
+    return(res);
+}
+
 // DEPRECATED, MARKED TO BE REMOVED
 /**
 * @brief Get the indices of age values in a reference vector.
