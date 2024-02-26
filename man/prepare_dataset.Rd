@@ -1,8 +1,8 @@
 \name{prepare_dataset} 
 \alias{prepare_dataset} 
-\usage{prepare_dataset(file_adiposity, file_control, n_train, is_znorm, 
+\usage{prepare_dataset(file_adiposity, file_nonobese, n_train, is_znorm, 
 center_age, use_days, encode_sex, short_ids, first_extra, check_dups, 
-seed, age_range)} 
+seed, is_age_range, set_status, ...)} 
 \title{Loading and preprocessing of the CrescNet dataset.} 
 \description{Prepare the CrescNet dataset.} 
 \details{The functions expects file paths to specific CrescNet data with the variables 
@@ -14,7 +14,7 @@ Otherwise their values are set to `NA`.
 } 
 \arguments{ 
   \item{file_adiposity}{CrescNet file path for obese labeled subjects.} 
-  \item{file_control}{CrescNet file path for control labeled subjects.} 
+  \item{file_nonobese}{CrescNet file path for nonobese labeled subjects.} 
   \item{n_train}{Number of samples used for model building.} 
   \item{is_znorm}{Include z-normalization? Default: TRUE} 
   \item{center_age}{Should age be centered? Default: FALSE} 
@@ -24,8 +24,11 @@ Otherwise their values are set to `NA`.
   \item{first_extra}{First measurements as separate variables? Default: FALSE} 
   \item{check_dups}{Check for duplicates? Default: FALSE} 
   \item{seed}{Seed used for random sampling of subjects. Default: 1} 
-  \item{age_range}{Range of ages to keep. Default: NULL} 
+  \item{is_age_range}{Should age be categorized in age categories? Default: TRUE}, 
+  \item{set_status}{The way of how BMI should be categorized. Possible values: "IOTF" or "adjusted"}, 
+  \item{...}{Extra arguments to the function 'cutage'.} 
 } 
 \value{ 
  A data.frame contraining all variables of the CrescNet dataset. 
 } 
+\seealso{\code{\link{cutage}}, \code{\link{znorm}}, \code{\link{linref}}} 

@@ -1,13 +1,12 @@
 \name{do_simulation} 
 \alias{do_simulation} 
-\title{Run a sampling simulation to emulate CrescNet data filtering} 
+\title{Run a Monte-Carlo sampling simulation to emulate CrescNet data selection} 
 \description{ 
-Running a simulation based on the general properties of the CrescNet in use. 
+Investigation of the influence of sampling on the generated sample. 
 } 
 \details{ 
-Simulation function to investigate the effect of the stratified sampling, i.e. 
-the use of split criteria on the association of the BMI mean and standard deviation (SD). 
- 
+Simulation function to investigate the effect of the random stratified sampling, i.e. 
+the use of split criteria based on centiles on the association of the BMI mean and standard deviation (SD). 
 } 
 \arguments{ 
 \item{cresc_data:}{A `data.frame` with CrescNet data.} 
@@ -17,5 +16,5 @@ the use of split criteria on the association of the BMI mean and standard deviat
 \item{split:}{Split criterion. Default: 0.97.} 
 } 
 \value{ 
-A `list` with with two data.tables: `sample` and `aggregated`. 
+A `list` with two data.tables, which include the simulated data `sample` and the summary statistics for each individual `aggregated`. 
 } 
