@@ -49,6 +49,213 @@ capfactorDT <- function(dt, colnames) {
     return(dt)
 }
 
+#' \name{quantize}
+#' \alias{quantize}
+#' \title{Quantize continuous data to frequency probabilities}
+#' \usage{quantize(x, y, digits = 2, step = 0.01)}
+#' \description{Quantize continuous data to frequency probabilities}
+#' \arguments{
+#' \item{x}{A numeric vector}
+#' \item{y}{A numeric vector}
+#' \item{digits}{The number of digits to round to. Default: 2}
+#' \item{step}{The step size. Default: 0.01}
+#' }
+#' \details{
+#' Quantize continuous data to frequency probabilities
+#' }
+#' \value{A list with the quantized data}
+
+quantize <- function(x, y, digits = 2, step = 0.01) {
+  x <- round(x, digits)
+  y <- round(y, digits)
+  # Find the overall min and max values of the joint set of measurements
+  rx <- range(c(x, y))
+  # Define a equal sized sequence of values, i.e. discrete sample line
+  sp <- round(seq(min(rx), max(rx), by = step), digits)
+  # Allocate resulting vectors
+  frq <- list("px" = rep(0, length(sp)), "py" = rep(0, length(sp)))
+  names(frq$px) <- names(frq$py) <- round(sp, digits)
+  n <- length(sp)
+
+  # Loop through the each value to quantize based on a common possible
+  # event space by defining discrete events by rounding on two digits
+  for (i in 1:n) {
+    for (j in 1:length(x)) {
+      if (sp[i] == x[j]) {
+        frq$px[i] <- frq$px[i] + 1
+      }
+    }
+    for (j in 1:length(y)) {
+      if (sp[i] == y[j]) {
+        frq$py[i] <- frq$py[i] + 1
+      }
+    }
+  }
+  # Get frequency probabilities
+  frq$px <- frq$px / sum(frq$px)
+  frq$py <- frq$py / sum(frq$py)
+
+  return(frq)
+}
+
+#' \name{quantizeFast}
+#' \alias{quantizeFast}
+#' \title{Quantize continuous data to frequency probabilities}
+#' \usage{quantizeFast(x, y, digits = 2, step = 0.01)}
+#' \description{Quantize continuous data to frequency probabilities}
+#' \arguments{
+#' \item{x}{A numeric vector}
+#' \item{y}{A numeric vector}
+#' \item{digits}{The number of digits to round to. Default: 2}
+#' \item{step}{The step size. Default: 0.01}
+#' }
+#' \details{
+#' Quantize continuous data to frequency probabilities
+#' }
+#' \value{A list with the quantized data}
+
+quantizeFast <- function(x, y, digits = 2, step = 0.01) {
+  res <- quantizeCpp(x, y, digits, step)
+  return(list(px = as.numeric(res$px), py = as.numeric(res$py)))
+}
+
+#' \name{dhel}
+#' \alias{dhel}
+#' \title{Hellinger distance}
+#' \usage{dhel(pobs, pref)}
+#' \description{Hellinger distance}
+#' \arguments{
+#' \item{pobs}{A numeric vector of the observed probabilities}
+#' \item{pref}{A numeric vector of the expected probabilities}
+#' }
+#' \details{
+#' Hellinger distance
+#' }
+#' \value{A numeric vector with the Hellinger distance}
+#' \seealso{See also \code{\link{dkl}}.}
+
+dhel <- function(pobs, pref) {
+  if (length(pobs) != length(pref)) stop("'pobs' and 'pref' must have equal length")
+  if(sum(pobs) != 1 & sum(pref) != 1) stop("probabilities of 'pobs' and 'pref' must sum up to 1")
+
+  n <- length(pobs)
+  hl <- 0
+  for (i in 1:n) {
+    if (pobs[i] != 0 & pref[i] != 0) {
+      hl <- hl + (sqrt(pobs[i]) - sqrt(pref[i]))^2
+    }
+  }
+  hl <- 1/sqrt(2) * hl
+  names(hl) <- NULL
+  return(hl)
+}
+
+#' \name{dkl}
+#' \alias{dkl}
+#' \title{Kullback-Leibler divergence}
+#' \usage{dkl(pobs, pref, base = exp(1))}
+#' \description{Kullback-Leibler divergence}
+#' \arguments{
+#' \item{pobs}{A numeric vector of the observed probabilities}
+#' \item{pref}{A numeric vector of the expected probabilities}
+#' \item{base}{Base of the logarithm}
+#' }
+#' \details{
+#' Kullback-Leibler divergence
+#' }
+#' \value{A numeric vector with the Kullback-Leibler divergence}
+#' \seealso{See also \code{\link{dhel}}.}
+
+dkl <- function(pobs, pref, base = exp(1)) {
+  if (length(pobs) != length(pref)) stop("'pobs' and 'pref' must have equal length")
+  if(sum(pobs) != 1 & sum(pref) != 1) stop("probabilities of 'pobs' and 'pref' must sum up to 1")
+  n <- length(pobs)
+  res <- 0
+  for (i in 1:n) {
+    if (pobs[i] != 0 & pref[i] != 0) {
+      res <- res + (pobs[i] * log(abs(pobs[i] / pref[i]), base))
+    }
+  }
+  names(res) <- NULL
+  return(res)
+}
+
+#' \name{entrinc}
+#' \alias{entrinc}
+#' \title{Increase in entropy}
+#' \usage{entrinc(pobs, pref, base = exp(1))}
+#' \description{Increase in entropy}
+#' \arguments{
+#' \item{pobs}{A numeric vector of the observed probabilities}
+#' \item{pref}{A numeric vector of the expected probabilities}
+#' \item{base}{Base of the logarithm}
+#' }
+#' \details{
+#' Calculate the increase in entropy based on the sum of the Kullback-Leibler divergence
+#' and the Shannon entropy h(pobs).
+#' }
+#' \value{A value for the increase in entropy}
+
+entrinc <- function(pobs, pref, base=exp(1)) {
+    if (length(pobs) != length(pref)) stop("'pobs' and 'pref' must have equal length")
+    if(sum(pobs) != 1 & sum(pref) != 1) stop("probabilities of 'pobs' and 'pref' must sum up to 1")
+    n <- length(pobs)
+    res <- 0
+
+    hp <- 0
+    for (i in 1:n) {
+      if (pobs[i] != 0 & pref[i] != 0) {
+        res <- res + (pobs[i] * log(abs(pobs[i] / pref[i]), base))
+        hp <- hp + log(abs(pobs[i]), base) * pobs[i]
+      }
+    }
+    return(res + hp)
+}
+
+#' \name{findMaxSubset}
+#' \alias{findMaxSubset}
+#' \title{Find maximum subset}
+#' \usage{findMaxSubset(cresc, u)}
+#' \description{Find maximum subset}
+#' \arguments{
+#' \item{cresc}{A data.table with CrescNet data}
+#' \item{u}{A character vector with the the possible U-examinations, e.g. "U1", "U2", etc.}
+#' }
+#' \details{
+#' Find maximum subset
+#' }
+#' \value{A numeric vector with the maximum subset}
+
+findMaxSubset <- function (cresc, u) {
+  subject_id <- exam <- w <- NULL
+
+  # Initialize matrix of bivariate graph
+  initBipartiteGraph <- function(cresc) {
+    sub <- cresc[, list(subject_id, exam)]
+    G <- dcast(sub, subject_id ~ exam, fun.aggregate = length, value.var = "exam")
+    setnames(G, "V1", "N")
+    return(G)
+  }
+
+  # Calculate weighted sum
+  weightsum <- function(x, k) {
+    a <- c(1, rep(10, k - 1))
+    return(x * cumprod(a))
+  }
+
+  # Find maximum subset
+  k <- length(u)
+  G1 <- initBipartiteGraph(cresc)
+  s <- G1[, subject_id]
+  G1 <- G1[, lapply(.SD, function(x) ifelse(x > 1, x / x, x)), .SDcols = u]
+  G1[, subject_id := s]
+  G2 <- G1[, .(w = rowSums(weightsum(.SD, k))), by = subject_id, .SDcols = u]
+  w_max <- G2[, names(first(sort(table(w), decreasing = TRUE)))]
+  s_max <- G2[w == w_max, subject_id]
+
+  return(s_max)
+}
+
 #' \name{get_indices}
 #' \alias{get_indices}
 #' \title{Retrieve the pair of indices for linear interpolation.}
@@ -211,8 +418,8 @@ interpolate_to_zscore <- function(value, age, ref, type=c("Weight", "Height", "B
 #' }
 
 linref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO"), measure = c("all", "Weight", "Height", "BMI"), age_range = c(0, 18), step = 0.01) {
-  #ref_name <- tolower(match.arg(ref_name))
-  #measure <- tolower(match.arg(measure))
+  ref_name <- tolower(ref_name)
+  measure <- tolower(measure)
   ref <- load_ref(ref_name = ref_name, measure = measure)
   age <- sex <- measure <- param <- nu <- mu <- sigma <- NULL
   inter <- rbind(
@@ -223,6 +430,7 @@ linref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO"), measure =
   inter[, param := factor(param, levels = c("nu", "mu", "sigma"))]
   setnames(inter, c("x", "y"), c("age", "value"))
   interlong <- dcast(inter, measure + sex + age ~ param, value.var = "value")
+  interlong[, age := round(age, 2)]
   return(interlong)
 }
 
@@ -334,13 +542,13 @@ get_reference_names <- function() {
 
 load_ref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"),
                      measure = c("all", "Weight", "Height", "BMI")) {
-  ref_name <- tolower(match.arg(ref_name))
-  measure <- tolower(match.arg(measure))
+  ref_name <- tolower(ref_name)
+  measure <- tolower(measure)
   ref <- switch(ref_name,
-    "kromeyer-hauschild" = .load_ref(ref_name, measure),
-    "kiggs" = .load_ref(ref_name, measure),
-    "who" = .load_ref(ref_name, measure),
-    "iotf" = .load_ref(ref_name, measure)
+    "kromeyer-hauschild" = .load_ref_rda(ref_name, measure),
+    "kiggs" = .load_ref_rda(ref_name, measure),
+    "who" = .load_ref_rda(ref_name, measure),
+    "iotf" = .load_ref_rda(ref_name, measure)
   )
   return(ref)
 }
@@ -584,7 +792,7 @@ nutritional_status_bmi_sds <- function(
 
 assign_median_bmi <- function(cresc_data, ref_name = "Kromeyer-Hauschild") {
   # Assign global variables
-  sex <- age <- bmi <- bmi_m <- NULL
+  sex <- age <- bmi <- bmi_m <- mu <- NULL
 
   .check_ref_name(ref_name)
 
@@ -594,18 +802,34 @@ assign_median_bmi <- function(cresc_data, ref_name = "Kromeyer-Hauschild") {
   # Allocate BMI to be interpolated
   cresc_data[, bmi_m := -1000];
 
+
+  mapbmi <- function(x, y) {
+    idx <- which(y == x)
+    return(idx)
+  }
+
+  # Assign for all measurements the BMI median
+  for (s in levels(cresc_data[, sex])) {
+    tmp <- cresc_data[sex == s,
+      ifelse(round(age, 2) %in% ref_interpl[sex == s, round(age, 2)],
+        ref_interpl[, mu],
+        NA
+      )
+    ]
+    cresc_data[sex == s, bmi_m := tmp]
+  }
+
   # Map the age the interpolated LMS parameters
-  fidx <- ref_interpl[, which(sex == levels(sex)[1])] - 1
-  midx <- ref_interpl[, which(sex == levels(sex)[2])] - 1
+  # fidx <- ref_interpl[, which(sex == levels(sex)[1])] - 1
+  # midx <- ref_interpl[, which(sex == levels(sex)[2])] - 1
 
-  bmimed <- assignMedianBmiCpp(
-    cresc_data[, bmi], cresc_data[, age],
-    cresc_data[, sex], ref_interpl[, age],
-    ref_interpl[, bmi_m], fidx,
-    midx
-  )
+  # bmimed <- assignMedianBmiCpp(
+  #   cresc_data[, bmi], cresc_data[, round(age, 4)],
+  #   cresc_data[, sex], ref_interpl[, round(age, 4)],
+  #   ref_interpl[, mu], fidx, midx
+  # )
 
-  cresc_data[, bmi_m := bmimed]
+  # cresc_data[, bmi_m := bmimed]
 
   return(cresc_data)
 }
@@ -741,7 +965,7 @@ cutage <- function(x, breaks = c(-Inf, 2, 6, 11, 14, Inf),
 #' \name{cutstatus}
 #' \alias{cutstatus}
 #' \title{Assigns nutrional status}
-#' \usage{cutstatus(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
+#' \usage{cutstatus(x, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf),
 #'                  labels = c("underweight", "normal", "overweight", "obese"),
 #'                  right = TRUE,
 #'                  to_zscore = TRUE)}
@@ -763,7 +987,7 @@ cutage <- function(x, breaks = c(-Inf, 2, 6, 11, 14, Inf),
 #'  }
 #' \seealso{\code{\link{cut}}}
 
-cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
+cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf),
                       labels = c("underweight", "normal", "overweight", "obese"),
                       right = TRUE,
                       to_zscore = TRUE
@@ -781,9 +1005,9 @@ cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
 
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
-#' \usage{prepare_dataset(file_adiposity, file_control, n_train, is_znorm,
+#' \usage{prepare_dataset(file_adiposity, file_nonobese, n_train, is_znorm,
 #' center_age, use_days, encode_sex, short_ids, first_extra, check_dups,
-#' seed, age_range)}
+#' seed, is_age_range, set_status, ...)}
 #' \title{Loading and preprocessing of the CrescNet dataset.}
 #' \description{Prepare the CrescNet dataset.}
 #' \details{The functions expects file paths to specific CrescNet data with the variables
@@ -795,7 +1019,7 @@ cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
 #' }
 #' \arguments{
 #'   \item{file_adiposity}{CrescNet file path for obese labeled subjects.}
-#'   \item{file_control}{CrescNet file path for control labeled subjects.}
+#'   \item{file_nonobese}{CrescNet file path for nonobese labeled subjects.}
 #'   \item{n_train}{Number of samples used for model building.}
 #'   \item{is_znorm}{Include z-normalization? Default: TRUE}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
@@ -805,15 +1029,18 @@ cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.95, Inf),
 #'   \item{first_extra}{First measurements as separate variables? Default: FALSE}
 #'   \item{check_dups}{Check for duplicates? Default: FALSE}
 #'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
-#'   \item{age_range}{Range of ages to keep. Default: NULL}
+#'   \item{is_age_range}{Should age be categorized in age categories? Default: TRUE},
+#'   \item{set_status}{The way of how BMI should be categorized. Possible values: "IOTF" or "adjusted"},
+#'   \item{...}{Extra arguments to the function 'cutage'.}
 #' }
 #' \value{
 #'  A data.frame contraining all variables of the CrescNet dataset.
 #' }
+#' \seealso{\code{\link{cutage}}, \code{\link{znorm}}, \code{\link{linref}}}
 
 # TODO: Include attributes for units & labels see Hmisc::label and Hmisc::units
 prepare_dataset <- function(file_adiposity,
-                            file_control,
+                            file_nonobese,
                             n_train = 100,
                             is_znorm = TRUE,
                             center_age = FALSE,
@@ -821,23 +1048,25 @@ prepare_dataset <- function(file_adiposity,
                             encode_sex = FALSE,
                             short_ids = TRUE,
                             first_extra = FALSE,
-                            check_dups = FALSE,
+                            check_dups = TRUE,
                             seed = 1,
-                            age_range = NULL
+                            is_age_range = TRUE,
+                            set_status = "IOTF",
+                            ...
 ) {
-  subject_id <- sex <- age <- record_id <- N <- age_group <- weight_sds <- height_sds <- bmi_sds <- NULL
+  subject_id <- sex <- age <- record_id <- N <- age_group <- weight_sds <- height_sds <- bmi_sds <- age_range <- status <- last_status <- NULL
 
   # Loading CrescNet data & pool data sets
   cresc_data <- rbind(data.table::fread(file_adiposity,
                                         header = TRUE,
                                         stringsAsFactors = TRUE)[, "type" := "adiposity"],
-                      data.table::fread(file_control,
+                      data.table::fread(file_nonobese,
                                         header=TRUE,
-                                        stringsAsFactors = TRUE)[, "type" := "control"])
+                                        stringsAsFactors = TRUE)[, "type" := "nonobese"])
 
   setnames(cresc_data, "gestational_age", "gest_age")
   setkey(cresc_data, "subject_id")
-  cresc_data[, ("type") := factor(get("type"), levels = c("control", "adiposity"))]
+  cresc_data[, ("type") := factor(get("type"), levels = c("nonobese", "adiposity"))]
 
   # Should shorter ids been used?
   if (short_ids) {
@@ -888,8 +1117,24 @@ prepare_dataset <- function(file_adiposity,
   cresc_data[, record_id := seq_len(.N), by = subject_id]
 
   # Include age cohorts
-  if (!is.null(age_range)) {
-    cresc_data <- create_age_cohorts(cresc_data, age_range)
+  if (is_age_range) {
+    #cresc_data <- create_age_cohorts(cresc_data, age_range)
+    cresc_data[, age_range := cutage(age, ...)]
+  }
+
+
+  # Include nutritional status based on IOTF
+  if (set_status == "IOTF") {
+    cresc_data[, status := cutstatus(bmi_sds, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf))]
+    cresc_data[, last_status := last(status), by = subject_id]
+  # Recommendation on de Onis and Lobstein (2010) for overweight and obesity:
+  # age < 5 years, then +2 and +3 and if age >= 5 years, then +1 and +2
+  } else if (set_status == "adjusted") {
+    cresc_data[age < 5, status := cutstatus(bmi_sds,
+      breaks = c(-Inf, 0.05, pnorm(2), pnorm(3), Inf))]
+    cresc_data[age >= 5 , status := cutstatus(bmi_sds,
+      breaks = c(-Inf, 0.05, pnorm(1), pnorm(2), Inf))]
+    cresc_data[, last_status := last(status), by = subject_id]
   }
 
   # Draw randomly subjects for data splitting
@@ -952,14 +1197,13 @@ create_age_cohorts <- function(cresc_data, age_range) {
 
 #' \name{do_simulation}
 #' \alias{do_simulation}
-#' \title{Run a sampling simulation to emulate CrescNet data filtering}
+#' \title{Run a Monte-Carlo sampling simulation to emulate CrescNet data selection}
 #' \description{
-#' Running a simulation based on the general properties of the CrescNet in use.
+#' Investigation of the influence of sampling on the generated sample.
 #' }
 #' \details{
-#' Simulation function to investigate the effect of the stratified sampling, i.e.
-#' the use of split criteria on the association of the BMI mean and standard deviation (SD).
-#'
+#' Simulation function to investigate the effect of the random stratified sampling, i.e.
+#' the use of split criteria based on centiles on the association of the BMI mean and standard deviation (SD).
 #' }
 #' \arguments{
 #' \item{cresc_data:}{A `data.frame` with CrescNet data.}
@@ -969,56 +1213,66 @@ create_age_cohorts <- function(cresc_data, age_range) {
 #' \item{split:}{Split criterion. Default: 0.97.}
 #' }
 #' \value{
-#' A `list` with with two data.tables: `sample` and `aggregated`.
+#' A `list` with two data.tables, which include the simulated data `sample` and the summary statistics for each individual `aggregated`.
 #' }
 
 do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, split = 0.97) {
-    subject_id <- age_group <- record_id <- bmi <- bmi_sds <- type <- mean_var <- sd_var <- mu_bmi <- var_bmi <- age_group <- N <- NULL
+    subject_id <- age_group <- record_id <- bmi <- bmi_sds <- type <- mean_sd <- sd_sd <- mu_bmi_sds <- sigma_bmi_sds <- age_group <- N <- NULL
 
-    # Get the BMI-SDS variability for each groups
-    varsubj <- cresc_data[, list(sd=sd(bmi_sds)), by = list(subject_id, type)]
+    # Remove any NAs
+    cresc_data <- na.omit(cresc_data)
+
+    # Get the individual BMI-SDS SD for each subject and each groups
+    vs <- cresc_data[, list(sd=sd(bmi_sds)), by = list(subject_id, type)]
 
     # Collect the mean and standard deviation of the variabiliy
-    varpars <- varsubj[, list(mean_var = mean(sd), sd_var = sd(sd)), by = list(type)]
+    vp <- vs[, list(mean_sd = mean(sd), sd_sd = sd(sd)), by = list(type)]
 
-    # Define a normal distribution representing the overall population with the empirical variability
-    # of each subpopulation
-    pop <- varpars[, list(mu_bmi = rnorm(n_pop, 0, 1), var_bmi = rnorm(n_pop, mean_var, sd_var)), by = type]
-    pop[, subject_id := mcgraph::mcg.autonames("ID_", n = .N)]
+    # Define a normal distribution representing the overall population with empirical variability of each subpopulation
+    po <- vp[, list(mu_bmi_sds = rnorm(n_pop, 0, 1), sigma_bmi_sds = rnorm(n_pop, mean_sd, sd_sd)), by = type]
+    po[, subject_id := mcgraph::mcg.autonames("ID_", n = .N)]
 
-    # Sample artificial subjects with k observations with mu and sigma from each distribution
-    # This is too slow right now
-    bmi_pop <- pop[, list(bmi_sds = rnorm(k, mu_bmi, abs(var_bmi))), by = subject_id]
+    # Sample subjects with k observations with mu and sigma from each distribution
+    bmipo <- po[, list(bmi_sds = rnorm(k, mu_bmi_sds, abs(sigma_bmi_sds))), by = subject_id]
 
-    # Select based on the 97th centile individually for each study group
-    pop_ob_subj <- bmi_pop[which(bmi_sds > qnorm(split, 0, 1)), unique(subject_id)]
-    bmi_pop[subject_id %in% pop_ob_subj, type := "Adiposity (simulated)"]
-    bmi_pop[!(subject_id %in% pop_ob_subj), type := "Control (simulated)"]
+    # Select individuals based on the selection criterion, i.e. having at least one measurement over 'split'
+    poobsu <- bmipo[which(bmi_sds > qnorm(split, 0, 1)), unique(subject_id)]
+    bmipo[subject_id %in% poobsu, type := "adiposity"]
+    bmipo[!(subject_id %in% poobsu), type := "nonobese"]
 
-    # Sampling
-    subs_ob_subj <- sample(pop_ob_subj, n_subjects)
-    subs_ctrl_subj <- sample(bmi_pop[!(subject_id %in% pop_ob_subj), subject_id], n_subjects)
-    sampl <- bmi_pop[subject_id %in% c(subs_ob_subj, subs_ctrl_subj), .SD]
+    # Sampling from the pool of candidates
+    sobsu <- sample(poobsu, n_subjects)
+    snonobsu <- sample(bmipo[!(subject_id %in% poobsu), subject_id], n_subjects)
+    sa <- rbind(bmipo[subject_id %in% sobsu, .SD],
+                bmipo[subject_id %in% snonobsu, .SD])
 
     # Include measurement IDs
-    sampl[, record_id := seq(1, .N, 1), by = subject_id]
-    sampl[, age_group := ""]
-    sampl[, N := .N, by = subject_id]
+    sa[, record_id := seq(1, .N, 1), by = subject_id]
+    sa[, age_group := ""]
+    sa[, N := .N, by = subject_id]
 
-    # Included age groups
-    sampl[record_id == 1, age_group := "start", by = subject_id]
-    sampl[record_id == N, age_group := "end", by = subject_id]
-    sampl[record_id > 1 & record_id < N, age_group := "interval"]
-
-    # Categorize adiposity groups based on BMI cutoffs
-    #sampl[age_group == "end",
-    #      cut(bmi, breaks = c(-Inf, pnorm(), 24.9, Inf), labels = c("Underweight", "Normal", "Obese"))]
+    # Include age groups
+    sa[record_id == 1, age_group := "start", by = subject_id]
+    sa[record_id == N, age_group := "end", by = subject_id]
+    sa[record_id > 1 & record_id < N, age_group := "interval"]
 
     # Summary statistics
-    agg <- sampl[, list(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
+    agg <- sa[, list(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
 
-    return(list(sample = sampl, aggregated = agg))
+    return(list(sample = sa, aggregated = agg))
 }
+
+#' \name{set_colours}
+#' \alias{set_colours}
+#' \title{Convenience function to set colours for four cohorts.}
+#' \description{Returns a set of four shades of blue.}
+#' \usage{set_colours()}
+#' \details{
+#'  Returns a set of four shades of blue.
+#' }
+#' \value{A vactor of for colours given in hexadecimal form.}
+#'
+set_colours <- function() return(c("#9ECAE1", "#6BAED6", "#2171B5", "#08306B"))
 
 #' \name{check_model}
 #' \alias{check_model}
@@ -1247,9 +1501,9 @@ theme_elegant <- function(base_size = 11,
                           strip.text = element_text(face ="plain",
                                                     size = rel(0.8),
                                                     hjust = 0.5,
-                                                    margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm")),
+                                                    margin = margin(0.2, 0.2, 0.2, 0.2, unit = "cm")),
                           strip.text.y = element_text(angle = 0,
-                                                      margin = margin(0.4, 0.4, 0.4, 0.4, unit = "cm")),
+                                                      margin = margin(0.2, 0.2, 0.2, 0.2, unit = "cm")),
                           ...
 ) {
     theme_bw(base_size = base_size, base_family = base_family) %+replace%
@@ -1643,8 +1897,8 @@ findIndicesCpp <- function(...) {
 }
 
 # Function to map the reference tables to the correct measures
-.load_ref <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"), measure = c("all", "Weight", "Height", "BMI")) {
-
+.load_ref_rda <- function(ref_name = c("Kromeyer-Hauschild", "KiGGS", "WHO", "IOTF"), measure = c("all", "Weight", "Height", "BMI")) {
+  meas <- tolower(measure)
   # This retrieves the absolute path of the .rda files, which are located in inst/extdata
   extdata <- system.file("extdata", package = getPackageName())
   filenms <- paste0(extdata, "/", tolower(ref_name), ".rda")
@@ -1655,7 +1909,12 @@ findIndicesCpp <- function(...) {
   }
 
   ref <- .load_rda(filenms)
-  return (ref)
+
+  if (any(meas == "all")) {
+    meas <- c("weight", "height", "bmi")
+  }
+
+  return (ref[measure %in% meas])
 }
 
 # TODO: This should be checked
