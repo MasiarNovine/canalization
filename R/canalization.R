@@ -1195,6 +1195,7 @@ create_age_cohorts <- function(cresc_data, age_range) {
   return(res)
 }
 
+# DEPRECATED: use monte carlo instead
 #' \name{do_simulation}
 #' \alias{do_simulation}
 #' \title{Run a Monte-Carlo sampling simulation to emulate CrescNet data selection}
@@ -1260,6 +1261,121 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
     agg <- sa[, list(mean = mean(bmi_sds), sd = sd(bmi_sds)), by = list(subject_id, type)]
 
     return(list(sample = sa, aggregated = agg))
+}
+
+
+#' \name{randwlk}
+#' \alias{randwlk}
+#' \Title{Random walk}
+#' \description{Model for a simple random walk.}
+#' \usage{randwalk(n, mean = 0, sd = 1, drift = 0, seed = 1)}
+#' \details{
+#'  A random walk is a first order Markov series, often used to model a time series, where the future
+#' value only depends only the present value. The function allows to specify a drift, which
+#' is a random term added to each point data of the series to simulate trending.
+#' }
+#' \arguments{
+#'  \item{n}{Number of values}
+#'  \item{mean}{Mean}
+#'  \item{sd}{Standard deviation}
+#'  \item{drift}{A value for the drift}
+#'  \item{seed}{Initial seed}
+#' }
+#' \value{A vector with values.}
+randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
+  set.seed(seed)
+  w <- rnorm(n, mean, sd)
+  wd <- w + drift
+  xd <- cumsum(wd)
+  return(xd)
+}
+
+#' \name{monte_carlo}
+#' \alias{monte_carlo}
+#' \title{Monte Carlo simulation}
+#' \description{A Monte Carlo simulation based on a random walk model}
+#' \usage{monte_carlo <- function(split = 0.97, mean_pop = 0, sigma_pop = 1, constraints = NULL, n = 10e5,
+#' k = 14, age = c(0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15), initseed = NULL, is_drift = FALSE,
+#' vary_mean = FALSE)
+#' \details{
+#' The function simulates a pool of individual time series over a specified age period and
+#' emulates a stratification scheme for selection of two study cohorts based on a specified
+#' percentile value assuming a standard normal distribution.
+#' }
+monte_carlo <- function(split = 0.97,
+                        mean_pop = 0,
+                        sigma_pop = 1,
+                        constraints = NULL,
+                        n = 10e5,
+                        k = 14,
+                        age = c(0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15),
+                        initseed = NULL,
+                        is_drift = FALSE,
+                        vary_mean = FALSE
+
+) {
+  if (length(age) != k) {
+    stop("length of 'age' must be the same as 'k'")
+  }
+
+  if (is.null(initseed)) {
+    initseed <- sample(1:(n * k), n, replace = FALSE)
+  }
+
+  if (length(initseed) != n) {
+    stop("length of 'initseed' must be same as 'n'")
+  }
+
+  # Initialization
+  set.seed(1234)
+  ageinc <- abs(rnorm(n * k, 0.25, 0.8))
+  dt <- data.table(subject_id = rep(mcgraph::mcg.autonames("ID_", n), each = k),
+                  age = age,
+                  bmi_sds = 0)
+  dt[, age := age + ageinc]
+  dt <- dt[, initseed := rep(initseed, each = k)]
+
+  if (is_drift) {
+    dt[, drift := rnorm(1, mean = 0.4, sd = 0.1), by = subject_id]
+    dt[, bmi_sds := randwalk(k, mean = mean_pop, sd = sigma_pop, drift = drift, seed = initseed), by = subject_id]
+  } else {
+    dt[, bmi_sds := randwalk(k, mean = mean_pop, sd = sigma_pop, drift = 0, seed = initseed), by = subject_id]
+  }
+
+  print("Initialization successful")
+
+  # Simulate stratifaction
+  ob <- dt[which(bmi_sds > qnorm(split)), unique(subject_id)]
+  dt[subject_id %in% ob, type := "adiposity"]
+  dt[!(subject_id %in% ob), type := "nonobese"]
+  dt[, type := factor(type, levels = c("nonobese", "adiposity"))]
+
+  print("Stratification successful")
+
+  if (!is.null(constraints)) {
+      # Remove physiological unsensible values
+      out <- dt[!between(bmi_sds, min(constraints), max(constraints)), unique(subject_id)]
+      dt <- dt[!(subject_id %in% out)]
+  }
+
+  # Generate sample
+  sa <- rbind(
+      dt[type == "adiposity"][subject_id %in% sample(subject_id, 1000)],
+      dt[type == "nonobese"][subject_id %in% sample(subject_id, 1000)])
+
+  print("Sample generation successful")
+
+  # Assign nutritional status
+  constr <- if (is.null(constraints)) "unconstraint" else paste(constraints, collapse = "/")
+  brks <- c(-Inf, 0.05, 0.85, 0.97, Inf)
+  lbls <- c("underweight", "normal", "overweight", "obese")
+  sa[, status := cutstatus(bmi_sds, breaks = brks, labels = lbls)]
+  sa[, last_status := last(status), by = subject_id]
+  sa[, split := paste0(100 * split, "th")]
+  sa[, sigma_pop := sigma_pop]
+  sa[, constraints := constr]
+
+  return(sa)
 }
 
 #' \name{set_colours}
