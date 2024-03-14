@@ -1299,9 +1299,31 @@ randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
 #' vary_mean = FALSE)
 #' \details{
 #' The function simulates a pool of individual time series over a specified age period and
-#' emulates a stratification scheme for selection of two study cohorts based on a specified
-#' percentile value assuming a standard normal distribution.
+#' emulates the stratification scheme for selection of two study cohorts based on a specified
+#' percentile value assuming a standard normal distribution as was done for generating the
+#' CrescNet data. For convenience, the values
+#' are assumed to be z-normalized BMI values.
+#'
+#' The simulation is based on the following rules: As an autocorrelation structure of the time series
+#' a first order Markov process based on a random walk model is assumed. Each individual is modeled
+#' by a seperate random walk model with intitial values drawn from a normal distribution with
+#' specified mean and standard deviation. Because after a while, the values of the time series might
+#' reach physiologically infeasible levels, it is possible to constrain values with a vector of [min, max]
+#' values.
 #' }
+#' \arguments{
+#'  \item{split}{Percentile value for the statification criterion.}
+#'  \item{mean_pop}{Population mean}
+#'  \item{sigma_pop}{Population standard deivation}
+#'  \item{constraints}{A vector of min and mac valued to constraint the values.}
+#'  \item{n}{The number of individual time series.}
+#'  \item{k}{The number of values for each time series.}
+#'  \item{age}{The age values. Must be the same length as 'k'}
+#'  \item{initseed}{The initial seed. Must be the same length as 'n'}
+#'  \item{is_drift}{Should individual time series be assigned a random drift term?}
+#'  \item{vary_mean}{Should individual mean values of the time series be varied?}
+#' }
+#' \value{A data.table with the columns 'bmi_sds', 'status', 'last_status', 'split', 'sigma_pop', 'constraints'.}
 monte_carlo <- function(split = 0.97,
                         mean_pop = 0,
                         sigma_pop = 1,
