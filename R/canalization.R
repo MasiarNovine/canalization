@@ -1266,7 +1266,7 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 
 #' \name{randwlk}
 #' \alias{randwlk}
-#' \Title{Random walk}
+#' \title{Random walk}
 #' \description{Model for a simple random walk.}
 #' \usage{randwalk(n, mean = 0, sd = 1, drift = 0, seed = 1)}
 #' \details{
@@ -1297,6 +1297,7 @@ randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
 #' \usage{monte_carlo <- function(split = 0.97, mean_pop = 0, sigma_pop = 1, constraints = NULL, n = 10e5,
 #' k = 14, age = c(0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15), initseed = NULL, is_drift = FALSE,
 #' vary_mean = FALSE)
+#' }
 #' \details{
 #' The function simulates a pool of individual time series over a specified age period and
 #' emulates the stratification scheme for selection of two study cohorts based on a specified
