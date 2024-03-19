@@ -222,10 +222,11 @@ entrinc <- function(pobs, pref, base=exp(1)) {
 #' \item{u}{A character vector with the the possible U-examinations, e.g. "U1", "U2", etc.}
 #' }
 #' \details{
-#' Find maximum subset
+#' This function finds the maximum subset of individuals, sharing the
+#' most number of measurements for the age period before 6 years based on
+#' standard examination timepoints for children recommended by the German Health authorities.
 #' }
 #' \value{A numeric vector with the maximum subset}
-
 findMaxSubset <- function (cresc, u) {
   subject_id <- exam <- w <- NULL
 
@@ -249,12 +250,70 @@ findMaxSubset <- function (cresc, u) {
   s <- G1[, subject_id]
   G1 <- G1[, lapply(.SD, function(x) ifelse(x > 1, x / x, x)), .SDcols = u]
   G1[, subject_id := s]
-  G2 <- G1[, .(w = rowSums(weightsum(.SD, k))), by = subject_id, .SDcols = u]
+  G2 <- G1[, list(w = rowSums(weightsum(.SD, k))), by = subject_id, .SDcols = u]
   w_max <- G2[, names(first(sort(table(w), decreasing = TRUE)))]
   s_max <- G2[w == w_max, subject_id]
 
   return(s_max)
 }
+
+#' \name{getMaxSubset}
+#' \alias{getMaxSubset}
+#' \title{Gets the maximum subset}
+#' \usage{getMaxSubset(cresc, u, is_avg = TRUE)}
+#' \description{Subsets the CrescNet data.table and
+#' averages multiple records for the same examination timepoint.
+#' }
+#' \details{
+#' While \code{findMaxSubset} finds the IDs of the largest
+#' subset of individuals sharing most of their measurements, it will not actually
+#' return the measurements values of the subjects. This the purpose of this convenience
+#' function, which  subsets the individuals and averages multiple entries
+#' for single examination points, such that all individuals will have
+#' the exactly the same number of measurements for the age range before 6 years.
+#' }
+#' \arguments{
+#'  \item{cresc}{A data.table with CrescNet data}
+#'  \item{u}{A character vector with the the possible U-examinations, e.g. "U1", "U2", etc.}
+#'  \item{is_avg}{Should multiple measurement values be averaged? Default: TRUE}
+#' }
+#' \value{A data.table with a subset of CrescNet data.}
+getMaxSubset <- function(cresc, u, is_avg = TRUE) {
+  subject_id <- NULL
+
+  # Find maximum subset
+  s_max <- findMaxSubset(cresc, u)
+  max_sub <- cresc[subject_id %in% s_max, ]
+
+  max_sub <- if (is_avg) {
+    .average_exams(max_sub)
+  } else max_sub
+
+  return(max_sub)
+}
+
+# The findMaxSubset algorithm does account for multiple examinations falling
+# in the same age range when calculating the weighted sum, but does not
+# process after finding the maximum subset of individuals.
+.average_exams <- function(cr) {
+    x <- exam <- age <- bmi_sds <- subject_id <- NULL
+    # Average duplicate examinations
+    vals <- x[exam != "",
+      .(age = mean(age), bmi_sds = mean(bmi_sds)),
+      by = .(subject_id, exam)
+    ]
+
+    # Extract base information
+    base <- x[exam != "",
+      unique(.SD),
+      .SDcols = c("subject_id", "sex", "gest_age", "first_bmi_sds",
+      "last_status", "last_bmi_sds", "type")
+    ]
+
+    # Merge both
+    return(merge(base, vals))
+}
+
 
 #' \name{get_indices}
 #' \alias{get_indices}
@@ -1198,6 +1257,7 @@ create_age_cohorts <- function(cresc_data, age_range) {
 # DEPRECATED: use monte carlo instead
 #' \name{do_simulation}
 #' \alias{do_simulation}
+#' \usage{do_simulation(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, split = 0.97)}
 #' \title{Run a Monte-Carlo sampling simulation to emulate CrescNet data selection}
 #' \description{
 #' Investigation of the influence of sampling on the generated sample.
@@ -1207,11 +1267,11 @@ create_age_cohorts <- function(cresc_data, age_range) {
 #' the use of split criteria based on centiles on the association of the BMI mean and standard deviation (SD).
 #' }
 #' \arguments{
-#' \item{cresc_data:}{A `data.frame` with CrescNet data.}
-#' \item{n_subjects:}{Number of simulated subjects. Default: 1000.}
-#' \item{k:}{Number of observations per subject. Default: 20.}
-#' \item{n_pop:}{Number of observations in the population. Default: 1e5.}
-#' \item{split:}{Split criterion. Default: 0.97.}
+#' \item{cresc_data}{A `data.frame` with CrescNet data.}
+#' \item{n_subjects}{Number of simulated subjects. Default: 1000.}
+#' \item{k}{Number of observations per subject. Default: 20.}
+#' \item{n_pop}{Number of observations in the population. Default: 1e5.}
+#' \item{split}{Split criterion. Default: 0.97.}
 #' }
 #' \value{
 #' A `list` with two data.tables, which include the simulated data `sample` and the summary statistics for each individual `aggregated`.
@@ -1264,11 +1324,11 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 }
 
 
-#' \name{randwlk}
-#' \alias{randwlk}
+#' \name{randwalk}
+#' \alias{randwalk}
+#' \usage{randwalk(n, mean = 0, sd = 1, drift = 0, seed = 1)}
 #' \title{Random walk}
 #' \description{Model for a simple random walk.}
-#' \usage{randwalk(n, mean = 0, sd = 1, drift = 0, seed = 1)}
 #' \details{
 #'  A random walk is a first order Markov series, often used to model a time series, where the future
 #' value only depends only the present value. The function allows to specify a drift, which
@@ -1282,6 +1342,7 @@ do_simulation <- function(cresc_data, n_subjects = 1000, k = 20, n_pop = 1e5, sp
 #'  \item{seed}{Initial seed}
 #' }
 #' \value{A vector with values.}
+#' \seealso{\code{monte_carlo}}
 randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
   set.seed(seed)
   w <- rnorm(n, mean, sd)
@@ -1293,11 +1354,10 @@ randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
 #' \name{monte_carlo}
 #' \alias{monte_carlo}
 #' \title{Monte Carlo simulation}
+#' \usage{monte_carlo(split = 0.97, mean_pop = 0, sigma_pop = 1, constraints = NULL,
+#' n = 10e5, k = 14, age = c(0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15),
+#' initseed = NULL, is_drift = FALSE, vary_mean = FALSE)}
 #' \description{A Monte Carlo simulation based on a random walk model}
-#' \usage{monte_carlo <- function(split = 0.97, mean_pop = 0, sigma_pop = 1, constraints = NULL, n = 10e5,
-#' k = 14, age = c(0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15), initseed = NULL, is_drift = FALSE,
-#' vary_mean = FALSE)
-#' }
 #' \details{
 #' The function simulates a pool of individual time series over a specified age period and
 #' emulates the stratification scheme for selection of two study cohorts based on a specified
@@ -1325,6 +1385,7 @@ randwalk <- function(n, mean = 0, sd = 1, drift = 0, seed = 1) {
 #'  \item{vary_mean}{Should individual mean values of the time series be varied?}
 #' }
 #' \value{A data.table with the columns 'bmi_sds', 'status', 'last_status', 'split', 'sigma_pop', 'constraints'.}
+#' \seealso{\code{randwalk}}
 monte_carlo <- function(split = 0.97,
                         mean_pop = 0,
                         sigma_pop = 1,
@@ -1337,6 +1398,8 @@ monte_carlo <- function(split = 0.97,
                         vary_mean = FALSE
 
 ) {
+  drift <- subject_id <- bmi_sds <- type <- status <- last_status <- NULL
+
   if (length(age) != k) {
     stop("length of 'age' must be the same as 'k'")
   }
@@ -1384,7 +1447,8 @@ monte_carlo <- function(split = 0.97,
   # Generate sample
   sa <- rbind(
       dt[type == "adiposity"][subject_id %in% sample(subject_id, 1000)],
-      dt[type == "nonobese"][subject_id %in% sample(subject_id, 1000)])
+      dt[type == "nonobese"][subject_id %in% sample(subject_id, 1000)]
+  )
 
   print("Sample generation successful")
 
