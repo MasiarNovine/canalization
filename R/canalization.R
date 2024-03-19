@@ -98,10 +98,10 @@ quantize <- function(x, y, digits = 2, step = 0.01) {
   return(frq)
 }
 
-#' \name{quantizeFast}
-#' \alias{quantizeFast}
+#' \name{quantizeCpp}
+#' \alias{quantizeCpp}
 #' \title{Quantize continuous data to frequency probabilities}
-#' \usage{quantizeFast(x, y, digits = 2, step = 0.01)}
+#' \usage{quantizeCpp(x, y, digits = 2, step = 0.01)}
 #' \description{Quantize continuous data to frequency probabilities}
 #' \arguments{
 #' \item{x}{A numeric vector}
@@ -114,7 +114,7 @@ quantize <- function(x, y, digits = 2, step = 0.01) {
 #' }
 #' \value{A list with the quantized data}
 
-quantizeFast <- function(x, y, digits = 2, step = 0.01) {
+quantizeCpp <- function(x, y, digits = 2, step = 0.01) {
   res <- quantizeCpp(x, y, digits, step)
   return(list(px = as.numeric(res$px), py = as.numeric(res$py)))
 }
@@ -297,21 +297,23 @@ getMaxSubset <- function(cresc, u, is_avg = TRUE) {
 # process after finding the maximum subset of individuals.
 .average_exams <- function(cr) {
     x <- exam <- age <- bmi_sds <- subject_id <- NULL
+
     # Average duplicate examinations
-    vals <- x[exam != "",
-      .(age = mean(age), bmi_sds = mean(bmi_sds)),
-      by = .(subject_id, exam)
+    vals <- x[
+      exam != "",
+      list(age = mean(age), bmi_sds = mean(bmi_sds)),
+      by = list(subject_id, exam)
     ]
 
     # Extract base information
-    base <- x[exam != "",
+    bl <- x[exam != "",
       unique(.SD),
       .SDcols = c("subject_id", "sex", "gest_age", "first_bmi_sds",
       "last_status", "last_bmi_sds", "type")
     ]
 
     # Merge both
-    return(merge(base, vals))
+    return(merge(bl, vals))
 }
 
 
