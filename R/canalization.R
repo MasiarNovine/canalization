@@ -257,66 +257,6 @@ findMaxSubset <- function (cresc, u) {
   return(s_max)
 }
 
-#' \name{getMaxSubset}
-#' \alias{getMaxSubset}
-#' \title{Gets the maximum subset}
-#' \usage{getMaxSubset(cresc, u, is_avg = TRUE)}
-#' \description{Subsets the CrescNet data.table and
-#' averages multiple records for the same examination timepoint.
-#' }
-#' \details{
-#' While \code{findMaxSubset} finds the IDs of the largest
-#' subset of individuals sharing most of their measurements, it will not actually
-#' return the measurements values of the subjects. This the purpose of this convenience
-#' function, which  subsets the individuals and averages multiple entries
-#' for single examination points, such that all individuals will have
-#' the exactly the same number of measurements for the age range before 6 years.
-#' }
-#' \arguments{
-#'  \item{cresc}{A data.table with CrescNet data}
-#'  \item{u}{A character vector with the the possible U-examinations, e.g. "U1", "U2", etc.}
-#'  \item{is_avg}{Should multiple measurement values be averaged? Default: TRUE}
-#' }
-#' \value{A data.table with a subset of CrescNet data.}
-getMaxSubset <- function(cresc, u, is_avg = TRUE) {
-  subject_id <- NULL
-
-  # Find maximum subset
-  s_max <- findMaxSubset(cresc, u)
-  max_sub <- cresc[subject_id %in% s_max, ]
-
-  max_sub <- if (is_avg) {
-    .average_exams(max_sub)
-  } else max_sub
-
-  return(max_sub)
-}
-
-# The findMaxSubset algorithm does account for multiple examinations falling
-# in the same age range when calculating the weighted sum, but does not
-# process after finding the maximum subset of individuals.
-.average_exams <- function(cr) {
-    x <- exam <- age <- bmi_sds <- subject_id <- NULL
-
-    # Average duplicate examinations
-    vals <- x[
-      exam != "",
-      list(age = mean(age), bmi_sds = mean(bmi_sds)),
-      by = list(subject_id, exam)
-    ]
-
-    # Extract base information
-    bl <- x[exam != "",
-      unique(.SD),
-      .SDcols = c("subject_id", "sex", "gest_age", "first_bmi_sds",
-      "last_status", "last_bmi_sds", "type")
-    ]
-
-    # Merge both
-    return(merge(bl, vals))
-}
-
-
 #' \name{get_indices}
 #' \alias{get_indices}
 #' \title{Retrieve the pair of indices for linear interpolation.}
@@ -1042,10 +982,10 @@ cutage <- function(x, breaks = c(-Inf, 2, 6, 11, 14, Inf),
 #'   \item{labels}{Status labels.}
 #'   \item{right}{Whether the intervals are right-closed (default), left-open or both.}
 #'   \item{to_zscore}{Whether to transform to z-scores.}
-#'  }
+#' }
 #' \value{
 #'   `factor` with status groups.
-#'  }
+#' }
 #' \seealso{\code{\link{cut}}}
 
 cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf),
@@ -1066,43 +1006,74 @@ cutstatus <- function(x, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf),
 
 #' \name{prepare_dataset}
 #' \alias{prepare_dataset}
-#' \usage{prepare_dataset(file_adiposity, file_nonobese, n_train, is_znorm,
-#' center_age, use_days, encode_sex, short_ids, first_extra, check_dups,
-#' seed, is_age_range, set_status, ...)}
 #' \title{Loading and preprocessing of the CrescNet dataset.}
-#' \description{Prepare the CrescNet dataset.}
-#' \details{The functions expects file paths to specific CrescNet data with the variables
-#' 'subject_id', 'sex', 'gestational_age', 'age', 'height', 'weight', 'height_sds',
-#' 'bmi', 'bmi_sds' and 'age_group'. `check_dups` will look for duplicated values,
-#' if their values are indistinguishable from eachother they averaged and kept.
-#' If the percentage difference is within 1% of the mean them, there are also kept.
-#' Otherwise their values are set to `NA`.
+#' \usage{
+#' prepare_dataset(file_adiposity, file_nonobese, n_train=400, is_znorm=TRUE,
+#'                 center_age=FALSE, use_days=FALSE, encode_sex=FALSE, short_ids=TRUE,
+#'                 first_extra=FALSE, check_dups=TRUE, seed=1234, set_age_range=TRUE,
+#'                 body_status="IOTF", ...)
 #' }
 #' \arguments{
 #'   \item{file_adiposity}{CrescNet file path for obese labeled subjects.}
 #'   \item{file_nonobese}{CrescNet file path for nonobese labeled subjects.}
-#'   \item{n_train}{Number of samples used for model building.}
+#'   \item{n_train}{Number of samples used for model building. Default: 400}
 #'   \item{is_znorm}{Include z-normalization? Default: TRUE}
 #'   \item{center_age}{Should age be centered? Default: FALSE}
 #'   \item{use_days}{Age given in days, instead of years? Default: FALSE}
 #'   \item{encode_sex}{Sex encoded as 1 (male) and -1 (female)? Default: FALSE}
 #'   \item{short_ids}{Shorter subject IDs? Default: TRUE}
 #'   \item{first_extra}{First measurements as separate variables? Default: FALSE}
-#'   \item{check_dups}{Check for duplicates? Default: FALSE}
-#'   \item{seed}{Seed used for random sampling of subjects. Default: 1}
-#'   \item{is_age_range}{Should age be categorized in age categories? Default: TRUE},
-#'   \item{set_status}{The way of how BMI should be categorized. Possible values: "IOTF" or "adjusted"},
+#'   \item{check_dups}{Check for duplicates? Default: TRUE}
+#'   \item{seed}{Seed used for random sampling of subjects. Default: 1234}
+#'   \item{set_age_range}{Should age be categorized in age categories? Default: TRUE}
+#'   \item{body_status}{The way of how BMI should be categorized. Possible values: "IOTF" or "adjusted". Default: "IOTF"}
 #'   \item{...}{Extra arguments to the function 'cutage'.}
 #' }
 #' \value{
-#'  A data.frame contraining all variables of the CrescNet dataset.
+#'  A list with the entries `train` and `test`, each containing a data.table with the CresNet data.
 #' }
-#' \seealso{\code{\link{cutage}}, \code{\link{znorm}}, \code{\link{linref}}}
+#' \description{Prepare the CrescNet dataset.}
+#' \details{
+#' The function expects file paths to specific CrescNet data with the following variables:
+#' 'subject_id', 'sex', 'gestational_age', 'age', 'height', 'weight', 'height_sds',
+#' 'bmi', 'bmi_sds' and 'age_group'. `check_dups` will look for duplicated values.
+#' If they are indistinguishable from eachother, i.e. if the percentage difference is within 1% of their mean,
+#' there are averaged and kept. Otherwise they are set to be `NA`.
+#'
+#' The dataset will be splitted in a training and
+#' a test set by default, where `n_train` specifies the number of subjects in the training
+#' set, such that the return value is a list. By default, 400 subjects are assigned to the
+#' training set, while 1600 are assigned to the test test set.
+#'
+#' The argument `body_status` specifies, which kind of cutoffs should be used for defining
+#' body status based on BMI: The value `IOTF` uses the cutoffs based on the broad categories defined by
+#' the International Obesity Task Force (IOTF) guidelines: thinness (< 18.5 kg/m^2),
+#' normal (18.5-25.0 kg/m^2), overweight (>= 25.0 kg/m^2) and obesity (>= 30.0 kg/m^2),
+#' without finer distinction. Specifying the argument to `adjusted` applies the proposal of
+#' Onis and Lobstein (2010) to categorize body shape by BMI-SDS:
+#' Using +2 and +3 BMI-SDS for ages <= 5 years and +1 and +2 BMI-SDS thereafter for
+#' overweight and obesity, respectively.
+#' This is a consequence of the association of BMI to actual fat mass, which
+#' changes throughout the development of children. Thus, BMI cutoffs are not independent of age and
+#' using them indiscriminately, leads to overdiagnosing very small children as overweight / obese.
+#' Note, that this will result in a discontinuity, when the BMI body status for longitudinal
+#' data of individuals is tracked, which exemplifies the general problem of defining cutoffs for transforming
+#' continuous variables into ordinal categories (Harrell, 2015, p.18).
+#' }
+#' \references{
+#'   \enumerate{
+#'    \item{Onis, M. de and T. Lobstein (2010). “Deﬁning obesity risk status in the general childhood population: which cut-oﬀs should we use?” eng. In: International journal of pediatric obesity : IJPO : an oﬃcial journal of the International Association for the Study of Obesity. Vol. 5. England, pp. 458–60.}
+#'    \item{Harrell, Frank E. Jr. (Aug. 2015). Regression Modeling Strategies. With Applications to Linear Models, Logistic and Ordinal Regression, and Survival Analysis. 2nd ed. Springer Cham. isbn: 978-3-319-19424-0.}
+#'   }
+#' }
+#' \seealso{
+#' \code{\link{cutage}}, \code{\link{znorm}}, \code{\link{linref}}
+#' }
 
 # TODO: Include attributes for units & labels see Hmisc::label and Hmisc::units
 prepare_dataset <- function(file_adiposity,
                             file_nonobese,
-                            n_train = 100,
+                            n_train = 400,
                             is_znorm = TRUE,
                             center_age = FALSE,
                             use_days = FALSE,
@@ -1110,9 +1081,9 @@ prepare_dataset <- function(file_adiposity,
                             short_ids = TRUE,
                             first_extra = FALSE,
                             check_dups = TRUE,
-                            seed = 1,
-                            is_age_range = TRUE,
-                            set_status = "IOTF",
+                            seed = 1234,
+                            set_age_range = TRUE,
+                            body_status = "IOTF",
                             ...
 ) {
   subject_id <- sex <- age <- record_id <- N <- age_group <- weight_sds <- height_sds <- bmi_sds <- age_range <- status <- last_status <- NULL
@@ -1178,19 +1149,19 @@ prepare_dataset <- function(file_adiposity,
   cresc_data[, record_id := seq_len(.N), by = subject_id]
 
   # Include age cohorts
-  if (is_age_range) {
+  if (set_age_range) {
     #cresc_data <- create_age_cohorts(cresc_data, age_range)
     cresc_data[, age_range := cutage(age, ...)]
   }
 
 
   # Include nutritional status based on IOTF
-  if (set_status == "IOTF") {
+  if (body_status == "IOTF") {
     cresc_data[, status := cutstatus(bmi_sds, breaks = c(-Inf, 0.05, 0.85, 0.97, Inf))]
     cresc_data[, last_status := last(status), by = subject_id]
   # Recommendation on de Onis and Lobstein (2010) for overweight and obesity:
   # age < 5 years, then +2 and +3 and if age >= 5 years, then +1 and +2
-  } else if (set_status == "adjusted") {
+  } else if (body_status == "adjusted") {
     cresc_data[age < 5, status := cutstatus(bmi_sds,
       breaks = c(-Inf, 0.05, pnorm(2), pnorm(3), Inf))]
     cresc_data[age >= 5 , status := cutstatus(bmi_sds,
