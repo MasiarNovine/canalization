@@ -212,6 +212,63 @@ entrinc <- function(pobs, pref, base=exp(1)) {
     return(res + hp)
 }
 
+#' \name{rtm}
+#' \alias{rtm}
+#' \title{Autocorrelation and regression toward the mean.}
+#' \usage{rtm(n = 10, yt = 1, phi = 0.5, intv = NULL, var_s = 0.4, var_e = 0.04, var_c = 0.6)}
+#' \description{Simulate data to investigate the relationship between autocorrelation
+# structures and regression toward the mean.}
+#' \arguments{
+#' \item{n}{Number of data points.}
+#' \item{yt}{Index of the data point, on which stratification should be done.}
+#' \item{phi}{Parameter controlling the degree of autocorrelation.}
+#' \item{intv}{Index of a possible interventation (optional).}
+#' \item{var_s}{Variance of the S term.}
+#' \item{var_e}{Variance of the error term.}
+#' \item{var_c}{Variance of a potential intervention term.}
+#' }
+#' \details{
+#' This function illustrates the relationship of regression toward the mean, stratification
+#' and the autocorrelation structure of the data as described by Nesselroade, Stigler and Baltes (1980).
+#' It is the implementaton of the function given by the authors to simulate the influence of
+#' varying autocorrelation structures, i.e. compound symmetry (CS) and
+#' first order autoregressive (AR1) on the persistence of regression toward the mean.
+#' }
+#' \value{A data.table with the simulated sequence, the corresponding discrete time values
+#' and the value of 'phi'.}
+#' \references{
+#' Nesselroade, J. R., Stigler, S. M., and Baltes, P. B., "Regression toward the mean and the study of change", Psychological Bulletin 88, 3 (1980), pp. 622--637.
+#' }
+rtm <- function(n = 10, yt = 1, phi = 0.5, intv = NULL,
+                var_s = 0.4, var_e = 0.04, var_c = 0.6) {
+  sequ <- rep(0, n)
+  sequ[yt] <- 1
+  ind <- seq_along(1:n)
+  if (!is.null(intv)) {
+    sequ[intv] <- var_s / sqrt((1 + var_c))
+    ind <- ind[-c(yt, intv)]
+  } else {
+    ind <- ind[-yt]
+  }
+  for (i in ind) {
+    # TODO: Can this be removed? (Another function given in Nesselroade et al (1980))
+    #sequ[i] <- ((var_s + phi^(i - 1)) / (var_s + 1 + var_e))
+    sequ[i] <- ((phi * var_s) / sqrt((phi^2 * var_s + var_e) * (var_s + phi^(-2 * i) * var_e)))
+  }
+
+  # TODO: Can this be removed?
+  # dstar <- if (phi > 1) {
+  #   (phi * var_s) * sqrt(phi^2 * var_s + var_e)
+  # } else if (phi > 0 & phi < 1) {
+  #   var_s
+  # } else if (phi == 1) {
+  #   var_s
+  # }
+
+  d <- data.table(corr = sequ, time = 1:n, phi = phi)
+  return(d)
+}
+
 #' \name{findMaxSubset}
 #' \alias{findMaxSubset}
 #' \title{Find maximum subset}
@@ -1153,7 +1210,6 @@ prepare_dataset <- function(file_adiposity,
     #cresc_data <- create_age_cohorts(cresc_data, age_range)
     cresc_data[, age_range := cutage(age, ...)]
   }
-
 
   # Include nutritional status based on IOTF
   if (body_status == "IOTF") {
