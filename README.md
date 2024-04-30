@@ -1,7 +1,9 @@
 # canalization
 
-This R package contains the source code used for the analysis part of my Master's thesis at
-the University of Potsdam. The analysis was concerned with the investigation of the association of BMI volatility and the risk for obesity, using a dataset of German children and adolescents from the years 2000 to 2022 provided by CrescNet, a research network associated with the University of Leipzig.    
+This repository contains the source code of the R package used for the analysis part of my Master's thesis at
+the University of Potsdam. 
+
+The analysis was concerned with the investigation of the relationship of BMI volatility and the risk for obesity. The analysis was based on a dataset of German children and adolescents from the years 2000 to 2022, which was provided by CrescNet (University of Leipzig).     
 
 ## Building the package
 
