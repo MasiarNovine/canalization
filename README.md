@@ -7,13 +7,13 @@ The analysis was concerned with the investigation of the relationship of BMI vol
 
 ## Building the package
 
-The package can be build by using the `make` utility:
+The package can be build and installed by using the `make` utility:
 
 ```
 make build
 ```
 
 This runs a small R function (provided by Detlef Groth), which extracts the documentations from the
-source file and creates `Rd` files for each documented function. After that, it builds and checks the tar-ball.
+source file and creates `Rd` files for each documented function. After that, it builds, checks the tar-ball and installs the package.
 
 If building has worked, the package can be installed by the common `R CMD INSTALL <tar-ball-name>`.
