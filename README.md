@@ -3,7 +3,7 @@
 This repository contains the source code of the R package used for the analysis part of my Master's thesis at
 the University of Potsdam. 
 
-The analysis was concerned with the investigation of the relationship of BMI volatility and the risk for obesity based on longitudinal data provided by CrescNet (University of Leipzig), consisted of German children and adolescents from the years 2000 to 2022.     
+The analysis was concerned with the investigation of the relationship of BMI volatility and the risk for obesity based on longitudinal data provided by CrescNet (University of Leipzig). The data consisted of randomly stratified sampled German children and adolescents from the years 2000 to 2022.     
 
 ## Building the package
 
